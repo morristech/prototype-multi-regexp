@@ -1,34 +1,31 @@
 package com.fasterxml.util.regext;
 
 import org.junit.Assert;
-import org.junit.Test;
 
-public class MultiPatternTest {
+public class MultiPatternTest extends TestBase
+{
+    public void testSimpleStrings() {
+        MultiPattern multiPattern = MultiPattern.of(
+                "ab+",     // 0
+                "abc+",    // 1
+                "ab?c",    // 2
+                "v",       // 3
+                "v.*",     // 4
+                "(def)+"   // 5
+        );
+        MultiPatternMatcher multiPatternMatcher = multiPattern.matcher();
 
-    static MultiPattern multiPattern = MultiPattern.of(
-            "ab+",     // 0
-            "abc+",    // 1
-            "ab?c",    // 2
-            "v",       // 3
-            "v.*",     // 4
-            "(def)+"   // 5
-    );
-
-    static final MultiPatternMatcher multiPatternMatcher = multiPattern.matcher();
-
-    @Test
-    public void testString() {
-        helper(multiPatternMatcher, "ab", 0);
-        helper(multiPatternMatcher, "abc", 1, 2);
-        helper(multiPatternMatcher, "ac", 2);
-        helper(multiPatternMatcher, "");
-        helper(multiPatternMatcher, "v", 3, 4);
-        helper(multiPatternMatcher, "defdef", 5);
-        helper(multiPatternMatcher, "defde");
-        helper(multiPatternMatcher, "abbbbb", 0);
+        _verifyMatch(multiPatternMatcher, "ab", 0);
+        _verifyMatch(multiPatternMatcher, "abc", 1, 2);
+        _verifyMatch(multiPatternMatcher, "ac", 2);
+        _verifyMatch(multiPatternMatcher, "");
+        _verifyMatch(multiPatternMatcher, "v", 3, 4);
+        _verifyMatch(multiPatternMatcher, "defdef", 5);
+        _verifyMatch(multiPatternMatcher, "defde");
+        _verifyMatch(multiPatternMatcher, "abbbbb", 0);
     }
 
-    public static void helper(MultiPatternMatcher matcher, String str, int... vals) {
+    private void _verifyMatch(MultiPatternMatcher matcher, String str, int... vals) {
         Assert.assertArrayEquals(vals, matcher.match(str));
     }
 }
