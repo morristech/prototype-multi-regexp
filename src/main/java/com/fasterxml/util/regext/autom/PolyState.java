@@ -1,4 +1,4 @@
-package com.fasterxml.util.regext;
+package com.fasterxml.util.regext.autom;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -7,11 +7,11 @@ import java.util.List;
 import dk.brics.automaton.State;
 
 // Note: Copied from Multiregexp package
-class MultiState
+class PolyState
 {
     private final State[] states;
 
-    public MultiState(State[] states) {
+    public PolyState(State[] states) {
         this.states = states;
     }
 
@@ -24,23 +24,18 @@ class MultiState
         return true;
     }
 
-    public MultiState step(char token) {
-        State[] nextStates = new State[this.states.length];
-        for (int c=0; c< this.states.length; c++) {
-            State prevState = this.states[c];
-            if (prevState == null) {
-                nextStates[c] = null;
-            }
-            else {
-                nextStates[c] = this.states[c].step(token);
-            }
+    public PolyState step(char token) {
+        State[] nextStates = new State[states.length];
+        for (int c = 0, clen = states.length; c < clen; ++c) {
+            State prevState = states[c];
+            nextStates[c] = (prevState == null) ? null : prevState.step(token);
         }
-        return new MultiState(nextStates);
+        return new PolyState(nextStates);
     }
 
     public int[] toAcceptValues() {
         List<Integer> acceptValues = new ArrayList<>();
-        for (int stateId=0; stateId<this.states.length; stateId++) {
+        for (int stateId = 0, stateCount = states.length; stateId < stateCount; ++stateId) {
             State curState = this.states[stateId];
             if ((curState != null) && (curState.isAccept())) {
                 acceptValues.add(stateId);
@@ -57,7 +52,7 @@ class MultiState
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        MultiState that = (MultiState) o;
+        PolyState that = (PolyState) o;
         return Arrays.equals(states, that.states);
     }
 

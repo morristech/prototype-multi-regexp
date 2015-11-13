@@ -2,18 +2,19 @@ package com.fasterxml.util.regext;
 
 import org.junit.Assert;
 
+import com.fasterxml.util.regext.autom.PolyMatcher;
+
 public class MultiPatternTest extends TestBase
 {
     public void testSimpleStrings() {
-        MultiPattern multiPattern = MultiPattern.of(
+        PolyMatcher multiPatternMatcher = PolyMatcher.create(
                 "ab+",     // 0
                 "abc+",    // 1
                 "ab?c",    // 2
                 "v",       // 3
                 "v.*",     // 4
                 "(def)+"   // 5
-        );
-        MultiPatternMatcher multiPatternMatcher = multiPattern.matcher();
+                );
 
         _verifyMatch(multiPatternMatcher, "ab", 0);
         _verifyMatch(multiPatternMatcher, "abc", 1, 2);
@@ -25,7 +26,7 @@ public class MultiPatternTest extends TestBase
         _verifyMatch(multiPatternMatcher, "abbbbb", 0);
     }
 
-    private void _verifyMatch(MultiPatternMatcher matcher, String str, int... vals) {
+    private void _verifyMatch(PolyMatcher matcher, String str, int... vals) {
         Assert.assertArrayEquals(vals, matcher.match(str));
     }
 }
