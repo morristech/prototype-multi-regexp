@@ -12,26 +12,25 @@ import dk.brics.automaton.State;
 public class Automata
 {
     private final int[][] _accept;
-    final boolean[] _atLeastOneAccept;
     private final int _stride;
     private final int[] _transitions;
     private final int[] _alphabet;
-    private final int _nbPatterns;
+
+    /**
+     * Number of input regexps
+     */
+    private final int _inputRegexpCount;
 
     private Automata(final int[][] accept,
             final int[] transitions,
             final char[] points,
-            final int nbPatterns)
+            final int inputREs)
     {
         _accept = accept;
         _transitions = transitions;
         _alphabet = alphabet(points);
         _stride = points.length;
-        _atLeastOneAccept = new boolean[accept.length];
-        for (int i=0; i<accept.length; i++) {
-            _atLeastOneAccept[i] = (_accept[i].length > 0);
-        }
-        _nbPatterns = nbPatterns;
+        _inputRegexpCount = inputREs;
     }
 
     private static int[] alphabet(final char[] points) {
@@ -107,12 +106,19 @@ public class Automata
 
         final int[][] acceptValues = new int[nbStates][];
         for (final Map.Entry<PolyState, Integer> entry: multiStateIndex.entrySet()) {
-            final Integer stateId = entry.getValue();
+            final int stateId = entry.getValue();
             final PolyState multiState = entry.getKey();
             acceptValues[stateId] = multiState.toAcceptValues();
         }
 
         return new Automata(acceptValues, transitions, points, automata.size());
+    }
+
+    /**
+     * @return Number of regexps used to construct this instance
+     */
+    public int size() {
+        return _inputRegexpCount;
     }
 
     public int step(final int state, final char c) {
@@ -123,17 +129,11 @@ public class Automata
         return _accept[stateId];
     }
 
-    // for testing
-    public int getNbPatterns() {
-        return _nbPatterns;
-    }
-
     static PolyState initialState(List<Automaton> automata) {
         final State[] initialStates = new State[automata.size()];
         int c = 0;
         for (final Automaton automaton: automata) {
-            initialStates[c] = automaton.getInitialState();
-            c += 1;
+            initialStates[c++] = automaton.getInitialState();
         }
         return new PolyState(initialStates);
     }
@@ -149,10 +149,9 @@ public class Automata
             }
         }
         char[] pointsArr = new char[points.size()];
-        int i=0;
+        int i = 0;
         for (Character c: points) {
-            pointsArr[i] = c;
-            i++;
+            pointsArr[i++] = c;
         }
         return pointsArr;
     }
