@@ -1,7 +1,8 @@
-package com.fasterxml.util.regext;
+package com.fasterxml.util.regext.autom;
 
 import org.junit.Assert;
 
+import com.fasterxml.util.regext.TestBase;
 import com.fasterxml.util.regext.autom.PolyMatcher;
 
 public class MultiPatternTest extends TestBase
