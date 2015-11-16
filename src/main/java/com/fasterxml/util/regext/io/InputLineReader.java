@@ -72,7 +72,7 @@ public class InputLineReader
             line = _nextContentLine();
             // Illegal to end with continuation
             if (line == null)  {
-                _reportError("Unexpected end-of-input when expecting line continuation'");
+            	reportError("Unexpected end-of-input when expecting line continuation'");
             }
             if (!line.endsWith("\\")) {
                 return combo.appendSegment(line);
@@ -82,6 +82,12 @@ public class InputLineReader
         }
     }
 
+    public void reportError(String template, Object... args) throws IOException {
+    	String msg = (args.length == 0) ? template
+    			: String.format(template, args);
+        throw new IOException(String.format("(%s, row %d): %s", _sourceRef, _row, msg));
+    }
+    
     protected String _nextContentLine() throws IOException
     {
         while (true) {
@@ -106,9 +112,5 @@ public class InputLineReader
         }
         // must be whitespace if we got this far
         return true;
-    }
-
-    protected void _reportError(String msg) throws IOException {
-        throw new IOException(String.format("(%s, row %d): %s", _sourceRef, _row, msg));
     }
 }
