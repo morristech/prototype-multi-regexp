@@ -85,16 +85,17 @@ public class DefinitionReader
 		}
 		offset += i;
 		content = content.substring(i+1);
-		StringPair p = TokenHelper.parseName(offset, content);
-		if (p == null) {
-			line.reportError(offset, "No pattern name found");
-		}
+		StringPair p = TokenHelper.parseName("pattern", line, offset, content);
 		String name = p.left();
 		int patternOffset = p.rightOffset();
 		String pattern = p.right();
 
-		// !!! TODO: actual parsing
-		_uncooked.addPattern(name, new UncookedPattern(pattern));
+		// Need to find cross-refs
+		UncookedPattern unp = new UncookedPattern(line);
+		UncookedPattern old = _uncooked.addPattern(name, unp);
+		if (old != null) {
+		    line.reportError(p.leftOffset(), "Duplicate pattern definition for name '%s'", name);
+		}
 	}
 
 	private void readTemplateDefinition(InputLine line, int offset, String content) throws IOException

@@ -2,35 +2,39 @@ package com.fasterxml.util.regext.model;
 
 import java.util.*;
 
+import com.fasterxml.util.regext.io.InputLine;
+
 /**
  * Encapsulation of pattern at point when it has not yet been fully processed
  * and may still contain references to other (uncooked) patterns.
  */
 public class UncookedPattern
 {
-	protected String _name;
+    protected String _name;
 
-	/**
-	 * Sequence of parts of this pattern instance.
-	 */
-	protected List<Segment> _parts = new LinkedList<Segment>();
+    protected InputLine _source;
 
-	public UncookedPattern(String literal) {
-		_parts.add(new Segment(literal, null));
-	}
+    /**
+     * Sequence of parts of this pattern instance.
+     */
+    protected List<Segment> _parts = new LinkedList<Segment>();
 
-	public UncookedPattern append(String literal, String pattern) {
-		_parts.add(new Segment(literal, pattern));
-		return this;
-	}
+    public UncookedPattern(InputLine src) {
+        _source = src;
+    }
 
-	static class Segment {
-		public final String literal;
-		public String pattern;
+    public UncookedPattern append(String literal, String patternRef) {
+        _parts.add(new Segment(literal, patternRef));
+        return this;
+    }
 
-		public Segment(String lit, String p) {
-			literal = lit;
-			pattern = p;
-		}
-	}
+    static class Segment {
+        public final String literal;
+        public String pattern;
+
+        public Segment(String lit, String p) {
+            literal = lit;
+            pattern = p;
+        }
+    }
 }

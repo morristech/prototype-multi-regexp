@@ -78,7 +78,7 @@ public class InputLine
         return _input;
     }
 
-    public void reportError(int physicalOffset, String template, Object... args) throws IOException {
+    public <T> T reportError(int physicalOffset, String template, Object... args) throws IOException {
     	String msg = (args.length == 0) ? template
     			: String.format(template, args);
         throw new IOException(String.format("(%s): %s", constructDesc(physicalOffset), msg));
