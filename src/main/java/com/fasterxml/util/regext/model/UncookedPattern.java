@@ -23,12 +23,16 @@ public class UncookedPattern
         _source = src;
     }
 
-    public UncookedPattern append(String literal, String patternRef) {
+    public void append(String literal, String patternRef) {
         _parts.add(new Segment(literal, patternRef));
-        return this;
     }
 
-    static class Segment {
+    // Just for testing
+    public List<Segment> getParts() {
+        return _parts;
+    }
+    
+    public static class Segment {
         public final String literal;
         public String pattern;
 

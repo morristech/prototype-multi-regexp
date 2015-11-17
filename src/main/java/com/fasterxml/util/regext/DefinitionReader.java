@@ -77,26 +77,66 @@ public class DefinitionReader
 		// Ok; done reading all.
 	}
 
-	private void readPatternDefinition(InputLine line, int offset, String content) throws IOException
-	{
-		int i = TokenHelper.findTypeMarker('%', content);
-		if (i < 0) {
-			line.reportError(offset, "Pattern name must start with '%'");
-		}
-		offset += i;
-		content = content.substring(i+1);
-		StringPair p = TokenHelper.parseName("pattern", line, offset, content);
-		String name = p.left();
-		int patternOffset = p.rightOffset();
-		String pattern = p.right();
+    private void readPatternDefinition(InputLine line, int offset, String content) throws IOException
+    {
+        int i = TokenHelper.findTypeMarker('%', content);
+        if (i < 0) {
+            line.reportError(offset, "Pattern name must start with '%'");
+        }
+        offset += i;
+        content = content.substring(i+1);
+        StringPair p = TokenHelper.parseName("pattern", line, offset, content);
+        String name = p.left();
+        String pattern = p.right();
 
-		// Need to find cross-refs
-		UncookedPattern unp = new UncookedPattern(line);
-		UncookedPattern old = _uncooked.addPattern(name, unp);
-		if (old != null) {
-		    line.reportError(p.leftOffset(), "Duplicate pattern definition for name '%s'", name);
-		}
-	}
+        // First, verify this is not dup
+        UncookedPattern unp = new UncookedPattern(line);
+        UncookedPattern old = _uncooked.addPattern(name, unp);
+        if (old != null) {
+            line.reportError(p.leftOffset(), "Duplicate pattern definition for name '%s'", name);
+        }
+        offset = p.rightOffset();
+
+        // And then need to find cross-refs
+        // First a quick and cheesy check for common case of no expansions
+        final int end = pattern.length();
+        int ix = pattern.indexOf('%');
+        if (ix < 0) {
+            unp.append(pattern, null);
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        if (ix > 0) {
+            sb.append(pattern.substring(0, ix));
+        }
+        while (ix < end) {
+            char c = pattern.charAt(ix++);
+            if (c != '%') {
+                sb.append(c);
+                continue;
+            }
+            if (ix == (end - 1)) {
+                line.reportError(offset+ix, "Orphan '%' at end of pattern definition", name);
+            }
+            c = pattern.charAt(ix);
+            if (c == '%') {
+                sb.append('%');
+                ++ix;
+                continue;
+            }
+            StringPair refPair = TokenHelper.parseName("pattern", line, offset+ix, content.substring(ix));
+            // Re-calc where we continue from etc
+            String refName = refPair.left();
+            ix = pattern.length() - refPair.right().length();
+
+            unp.append(sb.toString(), refName);
+            sb.setLength(0);
+        }
+
+        if (sb.length() > 0) {
+            unp.append(sb.toString(), null);
+        }
+    }
 
 	private void readTemplateDefinition(InputLine line, int offset, String content) throws IOException
 	{
