@@ -1,75 +1,74 @@
 package com.fasterxml.util.regext;
 
 import java.io.*;
-import java.util.*;
 
 import com.fasterxml.util.regext.io.InputLine;
 import com.fasterxml.util.regext.io.InputLineReader;
 import com.fasterxml.util.regext.model.UncookedExtractions;
 import com.fasterxml.util.regext.model.UncookedPattern;
-import com.fasterxml.util.regext.util.StringPair;
+import com.fasterxml.util.regext.util.StringAndOffset;
 import com.fasterxml.util.regext.util.TokenHelper;
 
 public class DefinitionReader
 {
-	private final static String KNOWN_KEYWORDS =
-			"(pattern, template, extract)"
-			;
-	
-	protected InputLineReader _lineReader;
+    private final static String KNOWN_KEYWORDS =
+            "(pattern, template, extract)"
+            ;
 
-	protected UncookedExtractions _uncooked;
-	
-	protected DefinitionReader(InputLineReader lineReader) {
-		_lineReader = lineReader;
-		_uncooked = new UncookedExtractions();
-	}
+    protected InputLineReader _lineReader;
 
-	public static DefinitionReader reader(File input) throws IOException
-	{
-		InputStream in = new FileInputStream(input);
-		String srcRef = "file '"+input.getAbsolutePath()+"'";
-		return new DefinitionReader(InputLineReader.construct(srcRef, in));
-	}
+    protected UncookedExtractions _uncooked;
 
-	public static DefinitionReader reader(String contents) throws IOException
-	{
-		Reader r = new StringReader(contents);
-		String srcRef = "<input string>";
-		return new DefinitionReader(InputLineReader.construct(srcRef, r));
-	}
-	
-	public ExtractionDefinition read() throws IOException {
-	    readUncooked();
-		// !!! TBI
-		return null;
-	}
+    protected DefinitionReader(InputLineReader lineReader) {
+        _lineReader = lineReader;
+        _uncooked = new UncookedExtractions();
+    }
 
-	public void readUncooked() throws IOException
-	{
-		// 1. Read all input in mostly unprocessed form
+    public static DefinitionReader reader(File input) throws IOException
+    {
+        InputStream in = new FileInputStream(input);
+        String srcRef = "file '"+input.getAbsolutePath()+"'";
+        return new DefinitionReader(InputLineReader.construct(srcRef, in));
+    }
 
-		InputLine line;
-		while ((line = _lineReader.nextLine()) != null) {
-			StringPair p = TokenHelper.findKeyword(0, line.getContents());
-			if (p == null) {
-				line.reportError(0, "No keyword found from line; expected one of %s", KNOWN_KEYWORDS);
-			}
+    public static DefinitionReader reader(String contents) throws IOException
+    {
+        Reader r = new StringReader(contents);
+        String srcRef = "<input string>";
+        return new DefinitionReader(InputLineReader.construct(srcRef, r));
+    }
 
-			final String keyword = p.left();
-			final String content = p.right();
-			switch (keyword) {
+    public ExtractionDefinition read() throws IOException {
+        readUncooked();
+        // !!! TBI
+        return null;
+    }
+
+    public void readUncooked() throws IOException
+    {
+        // 1. Read all input in mostly unprocessed form
+
+        InputLine line;
+        while ((line = _lineReader.nextLine()) != null) {
+            final String contents = line.getContents();
+            StringAndOffset p = TokenHelper.findKeyword(contents, 0);
+            if (p == null) {
+                line.reportError(0, "No keyword found from line; expected one of %s", KNOWN_KEYWORDS);
+            }
+
+            final String keyword = p.match;
+            switch (keyword) {
 			case "pattern":
-				readPatternDefinition(line, p.rightOffset(), content);
+				readPatternDefinition(line, p.restOffset);
 				break;
 			case "template":
-				readTemplateDefinition(line, p.rightOffset(), content);
+				readTemplateDefinition(line, p.restOffset);
 				break;
 			case "extract":
-				readExtractDefinition(line, p.rightOffset(), content);
+				readExtractDefinition(line, p.restOffset);
 				break;
 			default:
-				line.reportError(p.leftOffset(), "Unrecognized keyword \"%s\" encountered; expected one of %s",
+				line.reportError(0, "Unrecognized keyword \"%s\" encountered; expected one of %s",
 						keyword, KNOWN_KEYWORDS);
 			}
 		}
@@ -77,40 +76,40 @@ public class DefinitionReader
 		// Ok; done reading all.
 	}
 
-    private void readPatternDefinition(InputLine line, int offset, String content) throws IOException
+    private void readPatternDefinition(InputLine line, int offset) throws IOException
     {
-        int i = TokenHelper.findTypeMarker('%', content);
-        if (i < 0) {
+        final String contents = line.getContents();
+        offset = TokenHelper.findTypeMarker('%', contents, offset);
+        if (offset < 0) {
             line.reportError(offset, "Pattern name must start with '%'");
         }
-        offset += i;
-        content = content.substring(i+1);
-        StringPair p = TokenHelper.parseName("pattern", line, offset, content);
-        String name = p.left();
-        String pattern = p.right();
+        ++offset; // to skip percent marker
+        // then read name, do require white space after, to be skipped
+        StringAndOffset p = TokenHelper.parseNameAndSkipSpace("pattern", line, contents, offset);
+        String name = p.match;
 
         // First, verify this is not dup
         UncookedPattern unp = new UncookedPattern(line);
         UncookedPattern old = _uncooked.addPattern(name, unp);
         if (old != null) {
-            line.reportError(p.leftOffset(), "Duplicate pattern definition for name '%s'", name);
+            line.reportError(offset, "Duplicate pattern definition for name '%s'", name);
         }
-        offset = p.rightOffset();
-
+        offset = p.restOffset;
+        
         // And then need to find cross-refs
         // First a quick and cheesy check for common case of no expansions
-        final int end = pattern.length();
-        int ix = pattern.indexOf('%');
+        final int end = contents.length();
+        int ix = contents.indexOf('%', offset);
         if (ix < 0) {
-            unp.append(pattern, null);
+            unp.append(contents, null);
             return;
         }
         StringBuilder sb = new StringBuilder();
         if (ix > 0) {
-            sb.append(pattern.substring(0, ix));
+            sb.append(contents.substring(offset, ix));
         }
         while (ix < end) {
-            char c = pattern.charAt(ix++);
+            char c = contents.charAt(ix++);
             if (c != '%') {
                 sb.append(c);
                 continue;
@@ -118,19 +117,23 @@ public class DefinitionReader
             if (ix == (end - 1)) {
                 line.reportError(offset+ix, "Orphan '%' at end of pattern definition", name);
             }
-            c = pattern.charAt(ix);
+            c = contents.charAt(ix);
             if (c == '%') {
                 sb.append('%');
                 ++ix;
                 continue;
             }
-            StringPair refPair = TokenHelper.parseName("pattern", line, offset+ix, content.substring(ix));
+            StringAndOffset ref = TokenHelper.parseName("pattern", line, contents, ix);
             // Re-calc where we continue from etc
-            String refName = refPair.left();
-            ix = pattern.length() - refPair.right().length();
+            String refName = ref.match;
+            ix = ref.restOffset;
 
-            unp.append(sb.toString(), refName);
-            sb.setLength(0);
+            if (sb.length() > 0) {
+                unp.append(sb.toString(), refName);
+                sb.setLength(0);
+            } else {
+                unp.append(null, refName);
+            }
         }
 
         if (sb.length() > 0) {
@@ -138,13 +141,15 @@ public class DefinitionReader
         }
     }
 
-	private void readTemplateDefinition(InputLine line, int offset, String content) throws IOException
-	{
-		throw new UnsupportedOperationException();
-	}
+    private void readTemplateDefinition(InputLine line, int offset) throws IOException
+    {
+        final String contents = line.getContents();
+        throw new UnsupportedOperationException();
+    }
 
-	private void readExtractDefinition(InputLine line, int offset, String content) throws IOException
-	{
-		throw new UnsupportedOperationException();
-	}
+    private void readExtractDefinition(InputLine line, int offset) throws IOException
+    {
+        final String contents = line.getContents();
+        throw new UnsupportedOperationException();
+    }
 }

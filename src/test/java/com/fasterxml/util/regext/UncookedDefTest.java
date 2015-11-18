@@ -46,7 +46,7 @@ public class UncookedDefTest extends TestBase
 "pattern %wsChar \\s\n"+
 "pattern %optws %wsChar*\n"+
 "pattern %word ([a-z]+)\n"+
-"pattern %phrase3 %word %word%word\n"
+"pattern %phrase3   %word %word2%word3\n"
                     ;
         DefinitionReader defR = DefinitionReader.reader(DEF);
         defR.readUncooked();
@@ -56,10 +56,15 @@ public class UncookedDefTest extends TestBase
         assertEquals(4, patterns.size());
 
         // Let's see handling of composite definition
+        UncookedPattern optws = patterns.get("optws");
+        assertNotNull(optws);
+
+        assertEquals(2, optws.getParts().size());
+        
         UncookedPattern p3 = patterns.get("phrase3");
         assertNotNull(p3);
-        List<Segment> segs = p3.getParts();
-        assertEquals(3, segs.size());
+        
+        assertEquals(3, p3.getParts().size());
     }
     
     public void testDupPatternName() throws Exception

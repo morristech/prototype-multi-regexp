@@ -37,8 +37,15 @@ public class UncookedPattern
         public String pattern;
 
         public Segment(String lit, String p) {
-            literal = lit;
+            literal = (lit == null || lit.isEmpty()) ? null : lit;
             pattern = p;
+        }
+
+        @Override
+        public String toString() {
+            String l = (literal == null) ? "null" : String.format("'%s'", literal);
+            String p = (pattern == null) ? "null" : String.format("'%s'", pattern);
+            return String.format("[Segment, literal = %s, pattern = %s]", l, p);
         }
     }
 }
