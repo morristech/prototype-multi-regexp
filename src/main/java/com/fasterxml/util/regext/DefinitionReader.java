@@ -6,6 +6,7 @@ import com.fasterxml.util.regext.io.InputLine;
 import com.fasterxml.util.regext.io.InputLineReader;
 import com.fasterxml.util.regext.model.UncookedDefinitions;
 import com.fasterxml.util.regext.model.UncookedDefinition;
+import com.fasterxml.util.regext.model.UncookedExtraction;
 import com.fasterxml.util.regext.util.StringAndOffset;
 import com.fasterxml.util.regext.util.TokenHelper;
 
@@ -213,7 +214,45 @@ public class DefinitionReader
 
     private void readExtractionDefinition(InputLine line, int offset) throws IOException
     {
-        final String contents = line.getContents();
-        throw new UnsupportedOperationException();
+        String contents = line.getContents();
+        StringAndOffset p = TokenHelper.parseNameAndSkipSpace("extraction", line, contents, offset);
+        String name = p.match;
+
+        // And the rest should consist of just a single open curly brace, and optional white space
+        int ix = TokenHelper.matchRemaining(contents, p.restOffset, '{');
+        if (ix != contents.length()) {
+            line.reportError(p.restOffset, "Unexpected content for extraction '%s': expected only opening '{'",
+                    name);
+        }
+
+        UncookedExtraction extr = new UncookedExtraction(line, name);
+        _uncooked.addExtraction(name, extr);
+
+        // For contents within, should have name/content sections
+        while (true) {
+            line = _lineReader.nextLine();
+            if (line == null) {
+                _lineReader.reportError("Unexpected end-of-input in extraction '%s' definition", name);
+            }
+            contents = line.getContents();
+            // Either name/value pair, or closing brace
+            ix = TokenHelper.matchRemaining(contents, 0, '}');
+            if (ix >= 0) {
+                if (ix >= contents.length()) {
+                    break;
+                }
+                line.reportError(p.restOffset, "Unexpected content after closing '}' for extraction '%s'",
+                        name);
+            }
+
+            ix = TokenHelper.skipSpace(contents, 0);
+            p = TokenHelper.parseNameAndSkipSpace("extraction", line, contents, ix);
+            String prop = p.match;
+
+            // !!! TODO: handle contents
+        }
+
+        // !!! TODO: finalize or something
+
     }
 }

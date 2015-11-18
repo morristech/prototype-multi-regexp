@@ -10,6 +10,7 @@ import com.fasterxml.util.regext.model.PatternReference;
 import com.fasterxml.util.regext.model.TemplateReference;
 import com.fasterxml.util.regext.model.UncookedDefinitions;
 import com.fasterxml.util.regext.model.UncookedDefinition;
+import com.fasterxml.util.regext.model.UncookedExtraction;
 
 public class UncookedDefTest extends TestBase
 {
@@ -25,6 +26,11 @@ public class UncookedDefTest extends TestBase
 "\n"+
 "template @simple Prefix:\n"+
 "template @'base' %phrase%optws(sic!) @simple %host-name\n"+
+"\n"+
+"extract FooMessage {  \n"+
+"  template @base ($authStatus(Accepted))\n"+
+"  append \"service\":\"ssh\", \"logType\":\"security\"  \n"+
+"}\n"+
 
 				"";
         DefinitionReader defR = DefinitionReader.reader(DEF);
@@ -45,6 +51,10 @@ public class UncookedDefTest extends TestBase
         assertEquals(2, templates.size());
         assertTrue(templates.containsKey("simple"));
         assertTrue(templates.containsKey("base"));
+
+        Map<String,UncookedExtraction> extr = def.getExtractions();
+        assertEquals(1, extr.size());
+        assertTrue(extr.containsKey("FooMessage"));
     }
 
     public void testPatternRefsInPatterns() throws Exception

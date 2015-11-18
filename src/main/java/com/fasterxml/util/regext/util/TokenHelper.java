@@ -40,6 +40,36 @@ public class TokenHelper
         return -1;
     }
 
+    public static int skipSpace(String contents, int ix) {
+        final int end = contents.length();
+
+        for (; ix < end; ++ix) {
+            if (!_isWS(contents.charAt(ix))) {
+                break;
+            }
+        }
+        return ix;
+    }
+
+    public static int matchRemaining(String contents, int ix, char charToMatch)
+    {
+        boolean found = false;
+        final int end = contents.length();
+
+        while (ix < end) {
+            char c = contents.charAt(ix++);
+            if (c == charToMatch) {
+                if (found) {
+                    break;
+                }
+                found = true;
+            } else if (!_isWS(c)) {
+                break;
+            }
+        }
+        return found ? ix : -1;
+    }
+
     /**
      *<p>
      * NOTE: assumption is that there is no whitespace to skip, that is, the name
