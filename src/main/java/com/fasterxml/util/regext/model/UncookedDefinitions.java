@@ -6,10 +6,19 @@ import java.util.LinkedHashMap;
 
 public class UncookedDefinitions
 {
+    /**
+     * Parsed main-level named pattern definitions.
+     */
     protected HashMap<String,UncookedDefinition> _rawPatterns = new LinkedHashMap<>();
 
+    /**
+     * Parsed main-level named template definitions.
+     */
     protected HashMap<String,UncookedDefinition> _rawTemplates = new LinkedHashMap<>();
 
+    /**
+     * Parsed extraction clause definitions.
+     */
     protected HashMap<String,UncookedExtraction> _rawExtractions = new LinkedHashMap<>();
 
     public UncookedDefinitions() { }

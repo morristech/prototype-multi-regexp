@@ -1,7 +1,6 @@
 package com.fasterxml.util.regext;
 
 import java.io.*;
-import java.util.*;
 
 import com.fasterxml.util.regext.io.InputLine;
 import com.fasterxml.util.regext.io.InputLineReader;
@@ -44,8 +43,23 @@ public class DefinitionReader
     public ExtractionDefinition read() throws IOException {
         readUncooked();
         resolvePatterns();
+        resolveTemplates();
         // !!! TBI
         return null;
+    }
+
+    /*
+    /**********************************************************************
+    /* Test support
+    /**********************************************************************
+     */
+
+    void resolvePatterns() throws DefinitionParseException {
+        _cooked.resolvePatterns(_uncooked);
+    }
+
+    void resolveTemplates() throws DefinitionParseException {
+        _cooked.resolveTemplates(_uncooked);
     }
 
     /*
@@ -275,103 +289,10 @@ public class DefinitionReader
         // !!! TODO: finalize or something
 
     }
-
-    /*
-    /**********************************************************************
-    /* Resolution: patterns
-    /**********************************************************************
-     */
-
-    /**
-     * First part of resolution: resolving and flattening of pattern declarations.
-     * After this step, 
-     */
-    public void resolvePatterns() throws IOException
-    {
-        Map<String,UncookedDefinition> rawPatterns = _uncooked.getPatterns();
-        for (UncookedDefinition uncooked : rawPatterns.values()) {
-            String name = uncooked.getName();
-            if (_cooked.findPattern(name) != null) { // due to recursion, may have done it already
-                continue;
-            }
-            _cooked.addPattern(name, _resolvePattern(name, uncooked, null));
-        }
-    }
-
-    private LiteralPattern _resolvePattern(String name, UncookedDefinition def,
-            List<String> stack) throws DefinitionParseException
-    {
-        // Minor optimization: we might have just one part
-        List<DefPiece> pieces = def.getParts();
-        if (pieces.size() == 1) {
-            DefPiece piece = pieces.get(0);
-            if (piece instanceof LiteralPattern) {
-                return (LiteralPattern) piece;
-            }
-            // must be reference (only literals and refs)
-            if (stack == null) {
-                stack = new LinkedList<>();
-            }
-            return _resolvePatternReference(name, (PatternReference) piece, stack);
-        }
-        StringBuilder sb = new StringBuilder(100);
-        for (DefPiece piece : pieces) {
-            LiteralPattern lit;
-            if (piece instanceof LiteralPattern) {
-                lit = (LiteralPattern) piece;
-            } else {
-                // must be reference (only literals and refs)
-                if (stack == null) {
-                    stack = new LinkedList<>();
-                }
-                lit = _resolvePatternReference(name, (PatternReference) piece, stack);
-            }
-            sb.append(lit.getText());
-        }
-        return new LiteralPattern(def.getSource(), pieces.get(0).getSourceOffset(), sb.toString());
-    }
-
-    private LiteralPattern _resolvePatternReference(String fromName, PatternReference def,
-            List<String> stack) throws DefinitionParseException
-    {
-        final String toName = def.getText();
-        // very first thing: maybe already resolved?
-        LiteralPattern res = _cooked.findPattern(toName);
-        if (res != null) {
-            return res;
-        }
-
-        // otherwise verify that we have no loop
-        stack.add(fromName);
-        if (stack.contains(toName)) {
-            def.reportError("Cyclic pattern reference to '%%%s' (%s)",
-                    toName, _stackDesc("%", stack, toName));
-        }
-        UncookedDefinition raw = _uncooked.findPattern(toName);
-        if (raw == null) {
-            def.reportError("Referencing non-existing pattern '%%%s' (%s)",
-                    toName, _stackDesc("%", stack, toName));
-        }
-        LiteralPattern p = _resolvePattern(toName, raw, stack);
-        _cooked.addPattern(toName, p);
-        // but remove from stack
-        stack.remove(stack.size()-1);
-        return p;
-    }
-
-    private String _stackDesc(String marker, List<String> stack, String last) {
-        StringBuilder sb = new StringBuilder(100);
-        for (String str : stack) {
-            sb.append(marker).append(str);
-            sb.append("->");
-        }
-        sb.append(marker).append(last);
-        return sb.toString();
-    }
     
     /*
     /**********************************************************************
-    /* Resolution: templates
+    /* Helper methods
     /**********************************************************************
      */
 }
