@@ -79,11 +79,11 @@ public class DefinitionReader
     private void readPatternDefinition(InputLine line, int offset) throws IOException
     {
         final String contents = line.getContents();
-        offset = TokenHelper.findTypeMarker('%', contents, offset);
-        if (offset < 0) {
-            line.reportError(offset, "Pattern name must start with '%'");
+        int ix = TokenHelper.findTypeMarker('%', contents, offset);
+        if (ix < 0) {
+            line.reportError(offset, "Pattern name must be prefixed with '%'");
         }
-        ++offset; // to skip percent marker
+        offset = ix+1;// to skip percent marker
         // then read name, do require white space after, to be skipped
         StringAndOffset p = TokenHelper.parseNameAndSkipSpace("pattern", line, contents, offset);
         String name = p.match;
@@ -99,7 +99,7 @@ public class DefinitionReader
         // And then need to find cross-refs
         // First a quick and cheesy check for common case of no expansions
         final int end = contents.length();
-        int ix = contents.indexOf('%', offset);
+        ix = contents.indexOf('%', offset);
         if (ix < 0) {
             unp.appendLiteralPattern(contents, offset);
             return;
@@ -145,17 +145,17 @@ public class DefinitionReader
     private void readTemplateDefinition(InputLine line, int offset) throws IOException
     {
         final String contents = line.getContents();
-        offset = TokenHelper.findTypeMarker('@', contents, offset);
-        if (offset < 0) {
-            line.reportError(offset, "Template name must start with '@'");
+        int ix = TokenHelper.findTypeMarker('@', contents, offset);
+        if (ix < 0) {
+            line.reportError(offset, "Template name must be prefixed with '@'");
         }
-        ++offset;
+        offset = ix+1;
         StringAndOffset p = TokenHelper.parseNameAndSkipSpace("template", line, contents, offset);
         String name = p.match;
 
         // First, verify this is not dup
         UncookedDefinition unp = new UncookedDefinition(line);
-        UncookedDefinition old = _uncooked.addPattern(name, unp);
+        UncookedDefinition old = _uncooked.addTemplate(name, unp);
         if (old != null) {
             line.reportError(offset, "Duplicate template definition for name '%s'", name);
         }
@@ -164,7 +164,7 @@ public class DefinitionReader
         // And then need to find template AND pattern references, literal patterns
         final int end = contents.length();
         StringBuilder sb = new StringBuilder();
-        int ix = offset;
+        ix = offset;
         int literalStart = offset;
         while (ix < end) {
             char c = contents.charAt(ix++);
@@ -179,27 +179,35 @@ public class DefinitionReader
                     ++ix;
                     continue;
                 }
-                // literal patterns allowed
-                if ((d == '{') && (c == '%')) {
-                    // !!! TODO
+                if (sb.length() > 0) {
+                    unp.appendLiteralText(sb.toString(), literalStart);
+                    sb.setLength(0);
                 }
-            }
-                
-            StringAndOffset ref = TokenHelper.parseName("pattern", line, contents, ix);
-            // Re-calc where we continue from etc
-            String refName = ref.match;
 
-            if (sb.length() > 0) {
-                unp.appendLiteralPattern(sb.toString(), literalStart);
-                sb.setLength(0);
+                // literal patterns allowed
+                if (c == '%') {
+                    if (d == '{') {
+                        ++ix;
+                        p = TokenHelper.parseInlinePattern(line, contents, ix);
+                        unp.appendLiteralPattern(p.match, ix);
+                    } else {
+                        // otherwise named ref
+                        p = TokenHelper.parseName("pattern", line, contents, ix);
+                        unp.appendPatternRef(p.match, ix);
+                    }
+                } else { // template, only named refs
+                    p = TokenHelper.parseName("template", line, contents, ix);
+                    unp.appendTemplateRef(p.match, ix);
+                }
+                ix = p.restOffset;
+                literalStart = offset;
+                continue;
             }
-            unp.appendPatternRef(refName, ix);
-            ix = ref.restOffset;
-            literalStart = offset;
+            sb.append(c);
         }
 
         if (sb.length() > 0) {
-            unp.appendLiteralPattern(sb.toString(), literalStart);
+            unp.appendLiteralText(sb.toString(), literalStart);
         }
     }
 

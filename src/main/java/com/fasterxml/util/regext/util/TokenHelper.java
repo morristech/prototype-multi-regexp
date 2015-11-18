@@ -114,13 +114,44 @@ public class TokenHelper
         return new StringAndOffset(name, restStart);
     }
 
+    /**
+     * Helper method for finding closing '}', taking into account possible escaping,
+     * nested {...} constructs.
+     */
+    public static StringAndOffset parseInlinePattern(InputLine inputLine,
+            String contents, int start) throws IOException
+    {
+        final int end = contents.length();
+        int nesting = 1;
+        int i = start;
+
+        while (i < end) {
+            char c = contents.charAt(i++);
+            if (c == '\\') { // skip anything that is escaped
+                ++i;
+                continue;
+            }
+            if (c == '{') {
+                ++nesting;
+            } else if (c == '}') {
+                if (--nesting == 0) {
+                    return new StringAndOffset(contents.substring(start, i-1), i);
+                }
+            }
+        }
+
+        // should not get here
+        return inputLine.reportError(start, "Missing closing '{' for inline pattern");
+    }
+    
     //  could use full JDK approach, with extra whitespace; but for now just allow ASCII whitespace
     private static boolean _isWS(char ch) {
         return (ch <= ' ');
     }
 
     private static boolean _isNonLeadingNameChar(char c) {
-        if ((c == '-') || (c == '.')) {
+        // allow hyphens as extension to regular identifier, but nothing else (no dots f.ex)
+        if (c == '-') {
             return true;
         }
         return Character.isJavaIdentifierPart(c);

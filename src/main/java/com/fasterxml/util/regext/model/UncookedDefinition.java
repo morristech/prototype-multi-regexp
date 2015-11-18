@@ -28,7 +28,7 @@ public class UncookedDefinition
         _parts.add(new LiteralPattern(_source, offset, literal));
     }
 
-    public void appendLiteralTest(String literal, int offset) {
+    public void appendLiteralText(String literal, int offset) {
         _parts.add(new LiteralText(_source, offset, literal));
     }
 

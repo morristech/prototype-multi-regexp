@@ -27,6 +27,6 @@ public class UncookedDefinitions
     }
 
     public Map<String,UncookedDefinition> getTemplates() {
-        return _rawPatterns;
+        return _rawTemplates;
     }
 }
