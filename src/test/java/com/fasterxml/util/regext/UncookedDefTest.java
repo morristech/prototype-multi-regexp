@@ -1,12 +1,13 @@
 package com.fasterxml.util.regext;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+import com.fasterxml.util.regext.model.DefPiece;
+import com.fasterxml.util.regext.model.LiteralPattern;
+import com.fasterxml.util.regext.model.PatternReference;
 import com.fasterxml.util.regext.model.UncookedExtractions;
 import com.fasterxml.util.regext.model.UncookedPattern;
-import com.fasterxml.util.regext.model.UncookedPattern.Segment;
 
 public class UncookedDefTest extends TestBase
 {
@@ -54,17 +55,32 @@ public class UncookedDefTest extends TestBase
         Map<String,UncookedPattern> patterns = def.getPatterns();
 
         assertEquals(4, patterns.size());
+        List<DefPiece> parts;
 
         // Let's see handling of composite definition
         UncookedPattern optws = patterns.get("optws");
         assertNotNull(optws);
 
-        assertEquals(2, optws.getParts().size());
+        parts = optws.getParts();
+        assertEquals(2, parts.size());
+        assertEquals(PatternReference.class, parts.get(0).getClass());
+        assertEquals("wsChar", parts.get(0).getText());
+        assertEquals(LiteralPattern.class, parts.get(1).getClass());
+        assertEquals("*", parts.get(1).getText());
         
         UncookedPattern p3 = patterns.get("phrase3");
         assertNotNull(p3);
         
-        assertEquals(3, p3.getParts().size());
+        parts = p3.getParts();
+        assertEquals(4, parts.size());
+        assertEquals(PatternReference.class, parts.get(0).getClass());
+        assertEquals("word", parts.get(0).getText());
+        assertEquals(LiteralPattern.class, parts.get(1).getClass());
+        assertEquals(" ", parts.get(1).getText());
+        assertEquals(PatternReference.class, parts.get(2).getClass());
+        assertEquals("word2", parts.get(2).getText());
+        assertEquals(PatternReference.class, parts.get(3).getClass());
+        assertEquals("word3", parts.get(3).getText());
     }
     
     public void testDupPatternName() throws Exception

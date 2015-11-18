@@ -101,13 +101,14 @@ public class DefinitionReader
         final int end = contents.length();
         int ix = contents.indexOf('%', offset);
         if (ix < 0) {
-            unp.append(contents, null);
+            unp.appendLiteralPattern(contents, offset);
             return;
         }
         StringBuilder sb = new StringBuilder();
         if (ix > 0) {
             sb.append(contents.substring(offset, ix));
         }
+        int literalStart = offset;
         while (ix < end) {
             char c = contents.charAt(ix++);
             if (c != '%') {
@@ -115,7 +116,7 @@ public class DefinitionReader
                 continue;
             }
             if (ix == (end - 1)) {
-                line.reportError(offset+ix, "Orphan '%' at end of pattern definition", name);
+                line.reportError(ix, "Orphan '%' at end of pattern definition", name);
             }
             c = contents.charAt(ix);
             if (c == '%') {
@@ -126,18 +127,18 @@ public class DefinitionReader
             StringAndOffset ref = TokenHelper.parseName("pattern", line, contents, ix);
             // Re-calc where we continue from etc
             String refName = ref.match;
-            ix = ref.restOffset;
 
             if (sb.length() > 0) {
-                unp.append(sb.toString(), refName);
+                unp.appendLiteralPattern(sb.toString(), literalStart);
                 sb.setLength(0);
-            } else {
-                unp.append(null, refName);
             }
+            unp.appendPatternRef(refName, ix);
+            ix = ref.restOffset;
+            literalStart = offset;
         }
 
         if (sb.length() > 0) {
-            unp.append(sb.toString(), null);
+            unp.appendLiteralPattern(sb.toString(), literalStart);
         }
     }
 
