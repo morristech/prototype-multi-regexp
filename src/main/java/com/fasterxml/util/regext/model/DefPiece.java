@@ -1,5 +1,6 @@
 package com.fasterxml.util.regext.model;
 
+import com.fasterxml.util.regext.DefinitionParseException;
 import com.fasterxml.util.regext.io.InputLine;
 
 /**
@@ -23,6 +24,10 @@ public abstract class DefPiece
     public InputLine getSource() { return _source; }
     public int getSourceOffset() { return _sourceOffset; }
     public String getText() { return _text; }
+
+    public <T> T reportError(String template, Object... args) throws DefinitionParseException {
+        return _source.reportError(_sourceOffset, template, args);
+    }
 
     @Override
     public String toString() {

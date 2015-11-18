@@ -1,12 +1,11 @@
 package com.fasterxml.util.regext;
 
 import java.io.*;
+import java.util.*;
 
 import com.fasterxml.util.regext.io.InputLine;
 import com.fasterxml.util.regext.io.InputLineReader;
-import com.fasterxml.util.regext.model.UncookedDefinitions;
-import com.fasterxml.util.regext.model.UncookedDefinition;
-import com.fasterxml.util.regext.model.UncookedExtraction;
+import com.fasterxml.util.regext.model.*;
 import com.fasterxml.util.regext.util.StringAndOffset;
 import com.fasterxml.util.regext.util.TokenHelper;
 
@@ -16,13 +15,16 @@ public class DefinitionReader
             "(pattern, template, extract)"
             ;
 
-    protected InputLineReader _lineReader;
+    protected final InputLineReader _lineReader;
 
-    protected UncookedDefinitions _uncooked;
+    protected final UncookedDefinitions _uncooked;
 
+    protected final CookedDefinitions _cooked;
+    
     protected DefinitionReader(InputLineReader lineReader) {
         _lineReader = lineReader;
         _uncooked = new UncookedDefinitions();
+        _cooked = new CookedDefinitions();
     }
 
     public static DefinitionReader reader(File input) throws IOException
@@ -41,11 +43,23 @@ public class DefinitionReader
 
     public ExtractionDefinition read() throws IOException {
         readUncooked();
+        resolvePatterns();
         // !!! TBI
         return null;
     }
 
-    public void readUncooked() throws IOException
+    /*
+    /**********************************************************************
+    /* High-level flow
+    /**********************************************************************
+     */
+
+    /**
+     * First part of processing, reading of contents of extraction definition
+     * in "uncooked" form, which does basic tokenization but does not resolve
+     * any of named references
+     */
+    public void readUncooked() throws IOException, DefinitionParseException
     {
         // 1. Read all input in mostly unprocessed form
 
@@ -75,8 +89,14 @@ public class DefinitionReader
 		}
 
 		// Ok; done reading all.
-	}
+    }
 
+    /*
+    /**********************************************************************
+    /* Per-declaration-type parsing
+    /**********************************************************************
+     */
+    
     private void readPatternDefinition(InputLine line, int offset) throws IOException
     {
         final String contents = line.getContents();
@@ -90,7 +110,7 @@ public class DefinitionReader
         String name = p.match;
 
         // First, verify this is not dup
-        UncookedDefinition unp = new UncookedDefinition(line);
+        UncookedDefinition unp = new UncookedDefinition(line, name);
         UncookedDefinition old = _uncooked.addPattern(name, unp);
         if (old != null) {
             line.reportError(offset, "Duplicate pattern definition for name '%s'", name);
@@ -102,7 +122,7 @@ public class DefinitionReader
         final int end = contents.length();
         ix = contents.indexOf('%', offset);
         if (ix < 0) {
-            unp.appendLiteralPattern(contents, offset);
+            unp.appendLiteralPattern(contents.substring(offset), offset);
             return;
         }
         StringBuilder sb = new StringBuilder();
@@ -155,7 +175,7 @@ public class DefinitionReader
         String name = p.match;
 
         // First, verify this is not dup
-        UncookedDefinition unp = new UncookedDefinition(line);
+        UncookedDefinition unp = new UncookedDefinition(line, name);
         UncookedDefinition old = _uncooked.addTemplate(name, unp);
         if (old != null) {
             line.reportError(offset, "Duplicate template definition for name '%s'", name);
@@ -255,4 +275,103 @@ public class DefinitionReader
         // !!! TODO: finalize or something
 
     }
+
+    /*
+    /**********************************************************************
+    /* Resolution: patterns
+    /**********************************************************************
+     */
+
+    /**
+     * First part of resolution: resolving and flattening of pattern declarations.
+     * After this step, 
+     */
+    public void resolvePatterns() throws IOException
+    {
+        Map<String,UncookedDefinition> rawPatterns = _uncooked.getPatterns();
+        for (UncookedDefinition uncooked : rawPatterns.values()) {
+            String name = uncooked.getName();
+            if (_cooked.findPattern(name) != null) { // due to recursion, may have done it already
+                continue;
+            }
+            _cooked.addPattern(name, _resolvePattern(name, uncooked, null));
+        }
+    }
+
+    private LiteralPattern _resolvePattern(String name, UncookedDefinition def,
+            List<String> stack) throws DefinitionParseException
+    {
+        // Minor optimization: we might have just one part
+        List<DefPiece> pieces = def.getParts();
+        if (pieces.size() == 1) {
+            DefPiece piece = pieces.get(0);
+            if (piece instanceof LiteralPattern) {
+                return (LiteralPattern) piece;
+            }
+            // must be reference (only literals and refs)
+            if (stack == null) {
+                stack = new LinkedList<>();
+            }
+            return _resolvePatternReference(name, (PatternReference) piece, stack);
+        }
+        StringBuilder sb = new StringBuilder(100);
+        for (DefPiece piece : pieces) {
+            LiteralPattern lit;
+            if (piece instanceof LiteralPattern) {
+                lit = (LiteralPattern) piece;
+            } else {
+                // must be reference (only literals and refs)
+                if (stack == null) {
+                    stack = new LinkedList<>();
+                }
+                lit = _resolvePatternReference(name, (PatternReference) piece, stack);
+            }
+            sb.append(lit.getText());
+        }
+        return new LiteralPattern(def.getSource(), pieces.get(0).getSourceOffset(), sb.toString());
+    }
+
+    private LiteralPattern _resolvePatternReference(String fromName, PatternReference def,
+            List<String> stack) throws DefinitionParseException
+    {
+        final String toName = def.getText();
+        // very first thing: maybe already resolved?
+        LiteralPattern res = _cooked.findPattern(toName);
+        if (res != null) {
+            return res;
+        }
+
+        // otherwise verify that we have no loop
+        stack.add(fromName);
+        if (stack.contains(toName)) {
+            def.reportError("Cyclic pattern reference to '%%%s' (%s)",
+                    toName, _stackDesc("%", stack, toName));
+        }
+        UncookedDefinition raw = _uncooked.findPattern(toName);
+        if (raw == null) {
+            def.reportError("Referencing non-existing pattern '%%%s' (%s)",
+                    toName, _stackDesc("%", stack, toName));
+        }
+        LiteralPattern p = _resolvePattern(toName, raw, stack);
+        _cooked.addPattern(toName, p);
+        // but remove from stack
+        stack.remove(stack.size()-1);
+        return p;
+    }
+
+    private String _stackDesc(String marker, List<String> stack, String last) {
+        StringBuilder sb = new StringBuilder(100);
+        for (String str : stack) {
+            sb.append(marker).append(str);
+            sb.append("->");
+        }
+        sb.append(marker).append(last);
+        return sb.toString();
+    }
+    
+    /*
+    /**********************************************************************
+    /* Resolution: templates
+    /**********************************************************************
+     */
 }

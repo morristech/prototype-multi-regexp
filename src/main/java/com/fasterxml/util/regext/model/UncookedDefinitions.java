@@ -40,4 +40,8 @@ public class UncookedDefinitions
     public Map<String,UncookedExtraction> getExtractions() {
         return _rawExtractions;
     }
+
+    public UncookedDefinition findPattern(String name) {
+        return _rawPatterns.get(name);
+    }
 }

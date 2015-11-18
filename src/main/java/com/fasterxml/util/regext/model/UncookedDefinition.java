@@ -11,17 +11,18 @@ import com.fasterxml.util.regext.io.InputLine;
  */
 public class UncookedDefinition
 {
-    protected String _name;
+    protected final String _name;
 
-    protected InputLine _source;
+    protected final InputLine _source;
 
     /**
      * Sequence of pieces of this definition instance.
      */
     protected List<DefPiece> _parts = new LinkedList<DefPiece>();
 
-    public UncookedDefinition(InputLine src) {
+    public UncookedDefinition(InputLine src, String name) {
         _source = src;
+        _name = name;
     }
 
     public void appendLiteralPattern(String literal, int offset) {
@@ -39,8 +40,15 @@ public class UncookedDefinition
     public void appendTemplateRef(String name, int offset) {
         _parts.add(new TemplateReference(_source, offset, name));
     }
-    
-    // Just for testing
+
+    public String getName() {
+        return _name;
+    }
+
+    public InputLine getSource() {
+        return _source;
+    }
+
     public List<DefPiece> getParts() {
         return _parts;
     }

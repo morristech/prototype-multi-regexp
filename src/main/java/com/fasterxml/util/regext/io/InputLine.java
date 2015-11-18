@@ -1,7 +1,8 @@
 package com.fasterxml.util.regext.io;
 
-import java.io.IOException;
 import java.util.Arrays;
+
+import com.fasterxml.util.regext.DefinitionParseException;
 
 /**
  * Simple abstract over line-oriented input where a single logical line may come
@@ -78,10 +79,9 @@ public class InputLine
         return _input;
     }
 
-    public <T> T reportError(int physicalOffset, String template, Object... args) throws IOException {
-    	String msg = (args.length == 0) ? template
-    			: String.format(template, args);
-        throw new IOException(String.format("(%s): %s", constructDesc(physicalOffset), msg));
+    public <T> T reportError(int physicalOffset, String template, Object... args) throws DefinitionParseException {
+        String msg = (args.length == 0) ? template : String.format(template, args);
+        throw DefinitionParseException.construct(msg, this, physicalOffset);
     }
 
     /**
