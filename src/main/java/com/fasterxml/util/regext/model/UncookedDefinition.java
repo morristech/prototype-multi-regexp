@@ -5,21 +5,22 @@ import java.util.*;
 import com.fasterxml.util.regext.io.InputLine;
 
 /**
- * Encapsulation of pattern at point when it has not yet been fully processed
- * and may still contain references to other (uncooked) patterns.
+ * Encapsulation of a definition (pattern, template, extractor) that
+ * has only been tokenized, but where named references have not been
+ * resolved, nor any escaping/quoting performed.
  */
-public class UncookedPattern
+public class UncookedDefinition
 {
     protected String _name;
 
     protected InputLine _source;
 
     /**
-     * Sequence of parts of this pattern instance.
+     * Sequence of pieces of this definition instance.
      */
     protected List<DefPiece> _parts = new LinkedList<DefPiece>();
 
-    public UncookedPattern(InputLine src) {
+    public UncookedDefinition(InputLine src) {
         _source = src;
     }
 
@@ -27,8 +28,16 @@ public class UncookedPattern
         _parts.add(new LiteralPattern(_source, offset, literal));
     }
 
+    public void appendLiteralTest(String literal, int offset) {
+        _parts.add(new LiteralText(_source, offset, literal));
+    }
+
     public void appendPatternRef(String name, int offset) {
         _parts.add(new PatternReference(_source, offset, name));
+    }
+
+    public void appendTemplateRef(String name, int offset) {
+        _parts.add(new TemplateReference(_source, offset, name));
     }
     
     // Just for testing

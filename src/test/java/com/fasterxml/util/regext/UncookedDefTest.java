@@ -6,8 +6,8 @@ import java.util.*;
 import com.fasterxml.util.regext.model.DefPiece;
 import com.fasterxml.util.regext.model.LiteralPattern;
 import com.fasterxml.util.regext.model.PatternReference;
-import com.fasterxml.util.regext.model.UncookedExtractions;
-import com.fasterxml.util.regext.model.UncookedPattern;
+import com.fasterxml.util.regext.model.UncookedDefinitions;
+import com.fasterxml.util.regext.model.UncookedDefinition;
 
 public class UncookedDefTest extends TestBase
 {
@@ -23,8 +23,8 @@ public class UncookedDefTest extends TestBase
 				;
         DefinitionReader defR = DefinitionReader.reader(DEF);
         defR.readUncooked();
-        UncookedExtractions def = defR._uncooked;
-        Map<String,UncookedPattern> patterns = def.getPatterns();
+        UncookedDefinitions def = defR._uncooked;
+        Map<String,UncookedDefinition> patterns = def.getPatterns();
 
         /*
         for (String name : patterns.keySet()) {
@@ -45,20 +45,20 @@ public class UncookedDefTest extends TestBase
     {
         final String DEF =
 "pattern %wsChar \\s\n"+
-"pattern %optws %wsChar*\n"+
+"pattern %optws %wsChar*%%\n"+
 "pattern %word ([a-z]+)\n"+
 "pattern %phrase3   %word %word2%word3\n"
                     ;
         DefinitionReader defR = DefinitionReader.reader(DEF);
         defR.readUncooked();
-        UncookedExtractions def = defR._uncooked;
-        Map<String,UncookedPattern> patterns = def.getPatterns();
+        UncookedDefinitions def = defR._uncooked;
+        Map<String,UncookedDefinition> patterns = def.getPatterns();
 
         assertEquals(4, patterns.size());
         List<DefPiece> parts;
 
         // Let's see handling of composite definition
-        UncookedPattern optws = patterns.get("optws");
+        UncookedDefinition optws = patterns.get("optws");
         assertNotNull(optws);
 
         parts = optws.getParts();
@@ -66,9 +66,9 @@ public class UncookedDefTest extends TestBase
         assertEquals(PatternReference.class, parts.get(0).getClass());
         assertEquals("wsChar", parts.get(0).getText());
         assertEquals(LiteralPattern.class, parts.get(1).getClass());
-        assertEquals("*", parts.get(1).getText());
+        assertEquals("*%", parts.get(1).getText());
         
-        UncookedPattern p3 = patterns.get("phrase3");
+        UncookedDefinition p3 = patterns.get("phrase3");
         assertNotNull(p3);
         
         parts = p3.getParts();
@@ -82,6 +82,8 @@ public class UncookedDefTest extends TestBase
         assertEquals(PatternReference.class, parts.get(3).getClass());
         assertEquals("word3", parts.get(3).getText());
     }
+
+    // // // // Tests for failure handling
     
     public void testDupPatternName() throws Exception
     {
@@ -96,6 +98,20 @@ public class UncookedDefTest extends TestBase
             fail("Should have detected duplicate name");
         } catch (IOException e) {
             verifyException(e, "duplicate");
+        }
+    }
+
+    public void testOrphanPercent() throws Exception
+    {
+        final String DEF =
+"pattern %'ws' \\s+%\n"
+        ;
+        DefinitionReader defR = DefinitionReader.reader(DEF);
+        try {
+            defR.readUncooked();
+            fail("Should have detected duplicate name");
+        } catch (IOException e) {
+            verifyException(e, "Orphan '%'");
         }
     }
 }

@@ -4,8 +4,8 @@ import java.io.*;
 
 import com.fasterxml.util.regext.io.InputLine;
 import com.fasterxml.util.regext.io.InputLineReader;
-import com.fasterxml.util.regext.model.UncookedExtractions;
-import com.fasterxml.util.regext.model.UncookedPattern;
+import com.fasterxml.util.regext.model.UncookedDefinitions;
+import com.fasterxml.util.regext.model.UncookedDefinition;
 import com.fasterxml.util.regext.util.StringAndOffset;
 import com.fasterxml.util.regext.util.TokenHelper;
 
@@ -17,11 +17,11 @@ public class DefinitionReader
 
     protected InputLineReader _lineReader;
 
-    protected UncookedExtractions _uncooked;
+    protected UncookedDefinitions _uncooked;
 
     protected DefinitionReader(InputLineReader lineReader) {
         _lineReader = lineReader;
-        _uncooked = new UncookedExtractions();
+        _uncooked = new UncookedDefinitions();
     }
 
     public static DefinitionReader reader(File input) throws IOException
@@ -65,7 +65,7 @@ public class DefinitionReader
 				readTemplateDefinition(line, p.restOffset);
 				break;
 			case "extract":
-				readExtractDefinition(line, p.restOffset);
+				readExtractionDefinition(line, p.restOffset);
 				break;
 			default:
 				line.reportError(0, "Unrecognized keyword \"%s\" encountered; expected one of %s",
@@ -89,8 +89,8 @@ public class DefinitionReader
         String name = p.match;
 
         // First, verify this is not dup
-        UncookedPattern unp = new UncookedPattern(line);
-        UncookedPattern old = _uncooked.addPattern(name, unp);
+        UncookedDefinition unp = new UncookedDefinition(line);
+        UncookedDefinition old = _uncooked.addPattern(name, unp);
         if (old != null) {
             line.reportError(offset, "Duplicate pattern definition for name '%s'", name);
         }
@@ -115,12 +115,12 @@ public class DefinitionReader
                 sb.append(c);
                 continue;
             }
-            if (ix == (end - 1)) {
-                line.reportError(ix, "Orphan '%' at end of pattern definition", name);
+            if (ix == end) {
+                line.reportError(ix, "Orphan '%%' at end of pattern '%s' definition", name);
             }
             c = contents.charAt(ix);
             if (c == '%') {
-                sb.append('%');
+                sb.append(c);
                 ++ix;
                 continue;
             }
@@ -145,10 +145,65 @@ public class DefinitionReader
     private void readTemplateDefinition(InputLine line, int offset) throws IOException
     {
         final String contents = line.getContents();
-        throw new UnsupportedOperationException();
+        offset = TokenHelper.findTypeMarker('@', contents, offset);
+        if (offset < 0) {
+            line.reportError(offset, "Template name must start with '@'");
+        }
+        ++offset;
+        StringAndOffset p = TokenHelper.parseNameAndSkipSpace("template", line, contents, offset);
+        String name = p.match;
+
+        // First, verify this is not dup
+        UncookedDefinition unp = new UncookedDefinition(line);
+        UncookedDefinition old = _uncooked.addPattern(name, unp);
+        if (old != null) {
+            line.reportError(offset, "Duplicate template definition for name '%s'", name);
+        }
+        offset = p.restOffset;
+
+        // And then need to find template AND pattern references, literal patterns
+        final int end = contents.length();
+        StringBuilder sb = new StringBuilder();
+        int ix = offset;
+        int literalStart = offset;
+        while (ix < end) {
+            char c = contents.charAt(ix++);
+            if ((c == '%') || (c == '@')) {
+                if (ix == end) {
+                    line.reportError(ix, "Orphan '%c' at end of template '%s' definition", c, name);
+                }
+                // doubling up used as escaping mechanism:
+                char d = contents.charAt(ix);
+                if (c == d) {
+                    sb.append(c);
+                    ++ix;
+                    continue;
+                }
+                // literal patterns allowed
+                if ((d == '{') && (c == '%')) {
+                    // !!! TODO
+                }
+            }
+                
+            StringAndOffset ref = TokenHelper.parseName("pattern", line, contents, ix);
+            // Re-calc where we continue from etc
+            String refName = ref.match;
+
+            if (sb.length() > 0) {
+                unp.appendLiteralPattern(sb.toString(), literalStart);
+                sb.setLength(0);
+            }
+            unp.appendPatternRef(refName, ix);
+            ix = ref.restOffset;
+            literalStart = offset;
+        }
+
+        if (sb.length() > 0) {
+            unp.appendLiteralPattern(sb.toString(), literalStart);
+        }
     }
 
-    private void readExtractDefinition(InputLine line, int offset) throws IOException
+    private void readExtractionDefinition(InputLine line, int offset) throws IOException
     {
         final String contents = line.getContents();
         throw new UnsupportedOperationException();
