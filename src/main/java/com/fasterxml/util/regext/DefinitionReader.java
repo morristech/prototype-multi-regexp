@@ -1,7 +1,9 @@
 package com.fasterxml.util.regext;
 
 import java.io.*;
+import java.util.*;
 
+import com.fasterxml.jackson.jr.ob.JSON;
 import com.fasterxml.util.regext.io.InputLine;
 import com.fasterxml.util.regext.io.InputLineReader;
 import com.fasterxml.util.regext.model.*;
@@ -17,6 +19,11 @@ public class DefinitionReader
     private final static String EXTRACTOR_PROPERTIES =
             "(template, append)"
             ;
+
+    /**
+     * We use Jackson-jr for simple deserialization of 'append' properties
+     */
+    private final static JSON _json = JSON.std;
     
     protected final InputLineReader _lineReader;
 
@@ -317,9 +324,9 @@ public class DefinitionReader
                     name);
         }
 
-        UncookedExtraction extr = new UncookedExtraction(line, name);
-        _uncooked.addExtraction(name, extr);
-
+        UncookedDefinition template = null;
+        Map<String,Object> append = null;
+        
         // For contents within, should have name/content sections
         while (true) {
             line = _lineReader.nextLine();
@@ -339,27 +346,85 @@ public class DefinitionReader
 
             ix = TokenHelper.skipSpace(contents, 0);
             p = TokenHelper.parseNameAndSkipSpace("extraction", line, contents, ix);
+            ix = p.restOffset;
             String prop = p.match;
             switch (prop) {
             case "template":
+                {
+                    if (template != null) {
+                        line.reportError(ix, "More than one 'template' specified for '"+name+"'");
+                    }
+                    template = new UncookedDefinition(line, "");
+                    ix = _readTemplateContents(line, ix, template,
+                            0, "extraction template for '"+name+"'");
+                }
                 break;
             case "append":
+                // Contents are JSON, but for convenience we wrap it as Object if not
+                // already Object (since we must get key/value pairs)
+                {
+                    append = _readAppend(line, ix, contents.substring(ix), append);
+                }
                 break;
             default:
-                line.reportError(0, "Unrecognized extractor property \"%s\" encountered; expected one of %s",
+                line.reportError(ix, "Unrecognized extraction property \"%s\" encountered; expected one of %s",
                         prop, EXTRACTOR_PROPERTIES);
             }
 
             // !!! TODO: handle contents
         }
 
-        // !!! TODO: finalize or something
-
+        if (template == null) {
+            line.reportError(ix, "Missing 'template' for extraction '%s'", name);
+        }
+        
+        UncookedExtraction extr = new UncookedExtraction(line, name, template, append);
+        _uncooked.addExtraction(name, extr);
     }
-    
+
     /*
     /**********************************************************************
     /* Helper methods
     /**********************************************************************
      */
+
+    private Map<String,Object> _readAppend(InputLine line, int offset,
+            String rawJson, Map<String,Object> old)
+        throws DefinitionParseException
+    {
+        rawJson = rawJson.trim();
+        if (rawJson.isEmpty()) {
+            return old;
+        }
+        
+        // First things first: ensure it's a JSON Object
+        if (!rawJson.startsWith("{")) {
+            // but must start with a field name
+            if (rawJson.startsWith("\"")) {
+                rawJson = "{" + rawJson + "}";
+            }
+        }
+        Object raw;
+        try {
+            raw = _json.anyFrom(rawJson);
+        } catch (Exception e) {
+            DefinitionParseException exc = DefinitionParseException.construct
+                    ("Invalid JSON content to 'append': "+e.getMessage(), line, offset);
+            exc.initCause(e);
+            throw exc;
+        }
+        if (!(raw instanceof Map<?,?>)) {
+            line.reportError(offset,
+                    "Invalid 'append' value: must be JSON Object, or sequence of key/value pairs; was parsed as %s",
+                    raw.getClass().getName());
+        }
+        @SuppressWarnings("unchecked")
+        Map<String,Object> newStuff = (Map<String,Object>) raw;
+
+        if (old == null) {
+            return newStuff;
+        }
+        old.putAll(newStuff);
+        return old;
+    }
 }

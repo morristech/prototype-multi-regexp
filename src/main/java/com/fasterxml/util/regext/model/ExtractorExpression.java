@@ -15,7 +15,7 @@ public class ExtractorExpression
     implements DefPieceContainer, DefPieceAppendable
 {
     private List<DefPiece> _parts;
-    
+
     public ExtractorExpression(InputLine src, int offset, String lit) {
         super(src, offset, lit);
         _parts = new ArrayList<>();

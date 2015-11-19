@@ -27,7 +27,7 @@ public class CookedDefinitions
     public CookedTemplate findTemplate(String name) {
         return _templates.get(name);
     }
-    
+
     /*
     /**********************************************************************
     /* Resolution: patterns

@@ -47,10 +47,19 @@ loosely structured input like loglines
   </organization>
 
   <dependencies>
+    <!-- Automaton for efficient multi-regexp matching -->
     <dependency>
       <groupId>dk.brics.automaton</groupId>
       <artifactId>automaton</artifactId>
       <version>1.11-8</version>
+    </dependency>
+
+    <!-- Jackson-jr for appending properties
+      -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.jr</groupId>
+      <artifactId>jackson-jr-objects</artifactId>
+      <version>2.6.3</version>
     </dependency>
 
     <dependency>
