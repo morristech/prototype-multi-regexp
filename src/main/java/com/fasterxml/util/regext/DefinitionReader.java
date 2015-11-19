@@ -37,6 +37,7 @@ public class DefinitionReader
         _cooked = new CookedDefinitions();
     }
 
+    @SuppressWarnings("resource")
     public static DefinitionReader reader(File input) throws IOException
     {
         InputStream in = new FileInputStream(input);
@@ -55,8 +56,9 @@ public class DefinitionReader
         readUncooked();
         resolvePatterns();
         resolveTemplates();
-        // !!! TBI
-        return null;
+        resolveExtractions();
+
+        return ExtractionDefinition.construct(_cooked);
     }
 
     /*
@@ -73,6 +75,10 @@ public class DefinitionReader
         _cooked.resolveTemplates(_uncooked);
     }
 
+    void resolveExtractions() throws DefinitionParseException {
+        _cooked.resolveExtractions(_uncooked);
+    }
+    
     /*
     /**********************************************************************
     /* High-level flow
@@ -348,6 +354,7 @@ public class DefinitionReader
             p = TokenHelper.parseNameAndSkipSpace("extraction", line, contents, ix);
             ix = p.restOffset;
             String prop = p.match;
+
             switch (prop) {
             case "template":
                 {
@@ -370,8 +377,6 @@ public class DefinitionReader
                 line.reportError(ix, "Unrecognized extraction property \"%s\" encountered; expected one of %s",
                         prop, EXTRACTOR_PROPERTIES);
             }
-
-            // !!! TODO: handle contents
         }
 
         if (template == null) {

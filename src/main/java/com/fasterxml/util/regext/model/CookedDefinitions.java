@@ -10,10 +10,16 @@ public class CookedDefinitions
 
     protected HashMap<String,CookedTemplate> _templates = new LinkedHashMap<>();
 
+    protected List<CookedExtraction> _extractions = new ArrayList<>();
+    
     public CookedDefinitions() { }
 
     public LiteralPattern findPattern(String name) {
         return _patterns.get(name);
+    }
+
+    public CookedTemplate findTemplate(String name) {
+        return _templates.get(name);
     }
 
     public Map<String,LiteralPattern> getPatterns() {
@@ -24,8 +30,8 @@ public class CookedDefinitions
         return _templates;
     }
 
-    public CookedTemplate findTemplate(String name) {
-        return _templates.get(name);
+    public List<CookedExtraction> getExtractions() {
+        return _extractions;
     }
 
     /*
@@ -119,9 +125,6 @@ public class CookedDefinitions
     /**********************************************************************
      */
 
-    /**
-     * Second part of resolution: templates.
-     */
     public void resolveTemplates(UncookedDefinitions uncooked)  throws DefinitionParseException
     {
         Map<String,UncookedDefinition> uncookedTemplates = uncooked.getTemplates();
@@ -208,6 +211,25 @@ public class CookedDefinitions
         // but remove from stack
         stack.remove(stack.size()-1);
         return result;
+    }
+
+    /*
+    /**********************************************************************
+    /* Resolution: extractions
+    /**********************************************************************
+     */
+
+    public void resolveExtractions(UncookedDefinitions uncooked)  throws DefinitionParseException
+    {
+        Map<String, UncookedExtraction> uncookedTemplates = uncooked.getExtractions();
+        for (UncookedExtraction rawExtr : uncookedTemplates.values()) {
+            UncookedDefinition rawTemplate = rawExtr.getTemplate();
+            String name = rawTemplate.getName();
+            CookedTemplate template = CookedTemplate.construct(rawTemplate);
+            _resolveTemplateContents(Collections.<String,UncookedDefinition>emptyMap(),
+                    rawTemplate.getName(), rawTemplate.getParts(), template, null, name);
+            _extractions.add(rawExtr.resolve(template));
+        }
     }
 
     /*

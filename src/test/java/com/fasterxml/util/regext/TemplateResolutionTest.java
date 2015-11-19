@@ -105,9 +105,4 @@ public class TemplateResolutionTest extends TestBase
         _assertPart(parts.get(1), LiteralText.class, ",");
         _assertPart(parts.get(2), ExtractorExpression.class, "prop2");
     }
-
-    private void _assertPart(DefPiece part, Class<?> expClass, String expText) {
-        assertEquals(expClass, part.getClass());
-        assertEquals(expText, part.getText());
-    }
 }

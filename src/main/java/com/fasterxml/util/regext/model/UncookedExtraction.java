@@ -4,7 +4,10 @@ import java.util.Map;
 
 import com.fasterxml.util.regext.io.InputLine;
 
-// placeholder
+/**
+ * Definition of a single extraction, right after tokenization, but before
+ * resolution of included pattern and template references.
+ */
 public class UncookedExtraction
 {
     protected final InputLine _source;
@@ -21,15 +24,15 @@ public class UncookedExtraction
         _append = append;
     }
 
+    public CookedExtraction resolve(CookedTemplate template) {
+        return new CookedExtraction(_source, _name, template, _append);
+    }
+    
     public String getName() {
         return _name;
     }
 
     public UncookedDefinition getTemplate() {
         return _template;
-    }
-
-    public Map<String,Object> getExtra() {
-        return _append;
     }
 }

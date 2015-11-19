@@ -240,9 +240,4 @@ public class UncookedDefTest extends TestBase
             verifyException(e, "Orphan '%'");
         }
     }
-
-    private void _assertPart(DefPiece part, Class<?> expClass, String expText) {
-        assertEquals(expClass, part.getClass());
-        assertEquals(expText, part.getText());
-    }
 }
