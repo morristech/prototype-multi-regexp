@@ -5,25 +5,29 @@ import java.util.*;
 import com.fasterxml.util.regext.io.InputLine;
 
 /**
- * Encapsulation of a definition (pattern, template, extractor) that
- * has only been tokenized, but where named references have not been
- * resolved, nor any escaping/quoting performed.
+ * Similar to other {@link DefPiece}s, expect that it is structured and besides
+ * name (of variable/property to extract value for) also contains nested sequence
+ * of pieces (possibly including other extractors, but more commonly patterns,
+ * pattern references; theoretically also template references).
  */
-public class UncookedDefinition
-    implements DefPieceContainer
+public class ExtractorExpression
+    extends DefPiece
+    implements DefPieceContainer, DefPieceAppendable
 {
-    protected final String _name;
+    private List<DefPiece> _parts;
+    
+    public ExtractorExpression(InputLine src, int offset, String lit) {
+        super(src, offset, lit);
+        _parts = new ArrayList<>();
+    }
 
-    protected final InputLine _source;
+    public ExtractorExpression empty() {
+        return new ExtractorExpression(_source, _sourceOffset, _text);
+    }
 
-    /**
-     * Sequence of pieces of this definition instance.
-     */
-    protected List<DefPiece> _parts = new LinkedList<DefPiece>();
-
-    public UncookedDefinition(InputLine src, String name) {
-        _source = src;
-        _name = name;
+    @Override
+    public String getName() {
+        return getText();
     }
 
     @Override
@@ -53,16 +57,14 @@ public class UncookedDefinition
         return extr;
     }
 
+    // Also DefPieceAppendable during resolution
     @Override
-    public String getName() {
-        return _name;
+    public void append(DefPiece part) {
+        _parts.add(part);
     }
 
-    public InputLine getSource() {
-        return _source;
-    }
-
-    public List<DefPiece> getParts() {
+    @Override
+    public Iterable<DefPiece> getParts() {
         return _parts;
     }
 }

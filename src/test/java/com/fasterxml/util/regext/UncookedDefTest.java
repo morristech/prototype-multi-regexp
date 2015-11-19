@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.*;
 
 import com.fasterxml.util.regext.model.DefPiece;
+import com.fasterxml.util.regext.model.ExtractorExpression;
 import com.fasterxml.util.regext.model.LiteralPattern;
 import com.fasterxml.util.regext.model.LiteralText;
 import com.fasterxml.util.regext.model.PatternReference;
@@ -141,6 +142,72 @@ public class UncookedDefTest extends TestBase
         assertEquals(LiteralText.class, parts.get(4).getClass());
         assertEquals("more", parts.get(4).getText());
     }
+
+    public void testExtractors() throws Exception
+    {
+        final String DEF = "template @actual value=$value(Accepted$$%{\\d+})\n";
+                    ;
+        DefinitionReader defR = DefinitionReader.reader(DEF);
+        defR.readUncooked();
+        UncookedDefinitions def = defR._uncooked;
+        Map<String,UncookedDefinition> templates = def.getTemplates();
+
+        assertEquals(1, templates.size());
+
+        UncookedDefinition actual = templates.get("actual");
+        assertNotNull(actual);
+
+        _assertPart(actual.getParts().get(0), LiteralText.class, "value=");
+        _assertPart(actual.getParts().get(1), ExtractorExpression.class, "value");
+        ExtractorExpression extr = (ExtractorExpression) actual.getParts().get(1);
+        List<DefPiece> parts = (List<DefPiece>) extr.getParts();
+        assertEquals(2, parts.size());
+        _assertPart(parts.get(0), LiteralText.class, "Accepted$");
+        _assertPart(parts.get(1), LiteralPattern.class, "\\d+");
+    }
+
+    public void testExtractors2() throws Exception
+    {
+        final String DEF =
+"pattern %w [a-zA-Z]+\n"+
+"template @base value=$value(%w)\n"+
+"template @full @base extra=$extra($prop1(%w),$prop2(%w))\n"
+                    ;
+        DefinitionReader defR = DefinitionReader.reader(DEF);
+        defR.readUncooked();
+        UncookedDefinitions def = defR._uncooked;
+        Map<String,UncookedDefinition> templates = def.getTemplates();
+
+        assertEquals(2, templates.size());
+
+        UncookedDefinition actual = templates.get("base");
+        assertNotNull(actual);
+        _assertPart(actual.getParts().get(0), LiteralText.class, "value=");
+        _assertPart(actual.getParts().get(1), ExtractorExpression.class, "value");
+        ExtractorExpression extr = (ExtractorExpression) actual.getParts().get(1);
+        List<DefPiece> parts = (List<DefPiece>) extr.getParts();
+        assertEquals(1, parts.size());
+        _assertPart(parts.get(0), PatternReference.class, "w");
+
+        UncookedDefinition full = templates.get("full");
+        assertNotNull(full);
+        _assertPart(full.getParts().get(0), TemplateReference.class, "base");
+        _assertPart(full.getParts().get(1), LiteralText.class, " extra=");
+        _assertPart(full.getParts().get(2), ExtractorExpression.class, "extra");
+
+        extr = (ExtractorExpression) full.getParts().get(2);
+        parts = (List<DefPiece>) extr.getParts();
+        if (parts.size() > 0) {
+            _assertPart(parts.get(0), ExtractorExpression.class, "prop1");
+            if (parts.size() > 1) {
+                _assertPart(parts.get(1), LiteralText.class, ",");
+                if (parts.size() > 2) {
+                    _assertPart(parts.get(2), ExtractorExpression.class, "prop2");
+                }
+            }
+        }
+        assertEquals(3, parts.size());
+    }
     
     // // // // Tests for failure handling
     
@@ -172,5 +239,10 @@ public class UncookedDefTest extends TestBase
         } catch (IOException e) {
             verifyException(e, "Orphan '%'");
         }
+    }
+
+    private void _assertPart(DefPiece part, Class<?> expClass, String expText) {
+        assertEquals(expClass, part.getClass());
+        assertEquals(expText, part.getText());
     }
 }

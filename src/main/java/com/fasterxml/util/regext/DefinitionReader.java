@@ -14,6 +14,10 @@ public class DefinitionReader
             "(pattern, template, extract)"
             ;
 
+    private final static String EXTRACTOR_PROPERTIES =
+            "(template, append)"
+            ;
+    
     protected final InputLineReader _lineReader;
 
     protected final UncookedDefinitions _uncooked;
@@ -194,15 +198,16 @@ public class DefinitionReader
         if (old != null) {
             line.reportError(offset, "Duplicate template definition for name '%s'", name);
         }
-        _readTemplateContents(line, p.restOffset, unp);
+        _readTemplateContents(line, p.restOffset, unp, -1,
+                "template '"+name+"' definition");
     }
 
     /**
      * Shared parsing method implementation that handles parsing of contents of either
      * template, or extractor.
      */
-    private void _readTemplateContents(InputLine line, int ix, UncookedDefinition template,
-            int parenCount)
+    private int _readTemplateContents(InputLine line, int ix, DefPieceContainer container,
+            int parenCount, String desc)
         throws DefinitionParseException
     {
         // And then need to find template AND pattern references, literal patterns
@@ -214,7 +219,7 @@ public class DefinitionReader
             char c = contents.charAt(ix++);
             if ((c == '%') || (c == '@') || (c == '$')) {
                 if (ix == end) {
-                    line.reportError(ix, "Orphan '%c' at end of template '%s' definition", c, template.getName());
+                    line.reportError(ix, "Orphan '%c' at end of %s", c, desc);
                 }
                 // doubling up used as escaping mechanism:
                 char d = contents.charAt(ix);
@@ -224,7 +229,7 @@ public class DefinitionReader
                     continue;
                 }
                 if (sb.length() > 0) {
-                    template.appendLiteralText(sb.toString(), literalStart);
+                    container.appendLiteralText(sb.toString(), literalStart);
                     sb.setLength(0);
                 }
 
@@ -234,39 +239,56 @@ public class DefinitionReader
                     if (d == '{') {
                         ++ix;
                         p = TokenHelper.parseInlinePattern(line, contents, ix);
-                        template.appendLiteralPattern(p.match, ix);
+                        container.appendLiteralPattern(p.match, ix);
                     } else {
                         // otherwise named ref
                         p = TokenHelper.parseName("pattern", line, contents, ix);
-                        template.appendPatternRef(p.match, ix);
+                        container.appendPatternRef(p.match, ix);
                     }
                     ix = p.restOffset;
                 } else if (c == '@') { // template, only named refs
                     p = TokenHelper.parseName("template", line, contents, ix);
-                    template.appendTemplateRef(p.match, ix);
+                    container.appendTemplateRef(p.match, ix);
                     ix = p.restOffset;
                 } else { // must be '$', extractor definition
                     p = TokenHelper.parseName("extractor", line, contents, ix);
-                    ExtractorPiece extr = template.appendExtractor(p.match, ix);
+                    ExtractorExpression extr = container.appendExtractor(p.match, ix);
+                    ix = p.restOffset;
                     // That was simple, but now need to decode contents, recursively
                     ix = _readInlineExtractor(line, ix, extr);
                 }
                 literalStart = ix;
                 continue;
             }
+            // When parsing contents of an extractor
+            if (parenCount > 0) {
+                if (c == '(') {
+                    ++parenCount;
+                } else if (c == ')') {
+                    if (--parenCount == 0) {
+                        break;
+                    }
+                }
+                // but append normally, unless we bailed out
+            }
             sb.append(c);
         }
 
         if (sb.length() > 0) {
-            template.appendLiteralText(sb.toString(), literalStart);
+            container.appendLiteralText(sb.toString(), literalStart);
         }
+
+        if (parenCount > 0) {
+            line.reportError(ix, "Missing closing parenthesis at end of %s", desc);
+        }
+        return ix;
     }
 
     /**
      * Method that will read contents of a given inline extractor definition, up to
      * closing parenthesis
      */
-    private int _readInlineExtractor(InputLine line, int ix, ExtractorPiece extr)
+    private int _readInlineExtractor(InputLine line, int ix, ExtractorExpression extr)
         throws DefinitionParseException
     {
         final String contents = line.getContents();
@@ -277,9 +299,9 @@ public class DefinitionReader
                     extr.getName());
         }
         ++ix;
-        
-        // !!! TODO
-        return ix;
+
+        return _readTemplateContents(line, ix, extr, 1,
+                "extractor '"+extr.getName()+"' expression");
     }
 
     private void readExtractionDefinition(InputLine line, int offset) throws IOException
@@ -318,6 +340,15 @@ public class DefinitionReader
             ix = TokenHelper.skipSpace(contents, 0);
             p = TokenHelper.parseNameAndSkipSpace("extraction", line, contents, ix);
             String prop = p.match;
+            switch (prop) {
+            case "template":
+                break;
+            case "append":
+                break;
+            default:
+                line.reportError(0, "Unrecognized extractor property \"%s\" encountered; expected one of %s",
+                        prop, EXTRACTOR_PROPERTIES);
+            }
 
             // !!! TODO: handle contents
         }

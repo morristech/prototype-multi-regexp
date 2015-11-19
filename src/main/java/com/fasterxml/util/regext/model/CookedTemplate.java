@@ -5,6 +5,7 @@ import java.util.*;
 import com.fasterxml.util.regext.io.InputLine;
 
 public class CookedTemplate
+    implements DefPieceAppendable
 {
     protected final InputLine _source;
     protected final int _sourceOffset;
@@ -27,11 +28,14 @@ public class CookedTemplate
                 new ArrayList<DefPiece>(Math.min(4, uncooked.getParts().size())));
     }
 
-    public void addResolved(DefPiece part) {
+    @Override
+    public void append(DefPiece part) {
         _parts.add(part);
     }
-    
+
+    @Override
     public String getName() { return _name; }
 
-    public List<DefPiece> getParts() { return _parts; }
+    @Override
+    public Iterable<DefPiece> getParts() { return _parts; }
 }

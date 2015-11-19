@@ -130,19 +130,21 @@ public class CookedDefinitions
             if (_templates.containsKey(name)) { // due to recursion, may have done it already
                 continue;
             }
-            _templates.put(name, _resolveTemplate(uncookedTemplates, template, null, name));
+            CookedTemplate result = CookedTemplate.construct(template);
+            _resolveTemplateContents(uncookedTemplates,
+                    template.getName(), template.getParts(), result, null, name);
+            _templates.put(name, result);
         }
     }
 
-    private CookedTemplate _resolveTemplate(Map<String,UncookedDefinition> uncookedTemplates,
-            UncookedDefinition uncookedTemplate,
+    private void _resolveTemplateContents(Map<String,UncookedDefinition> uncookedTemplates,
+            String name, Iterable<DefPiece> toResolve, DefPieceAppendable result,
             List<String> stack, String topName)
         throws DefinitionParseException
     {
-        CookedTemplate result = CookedTemplate.construct(uncookedTemplate);
-        for (DefPiece def : uncookedTemplate.getParts()) {
+        for (DefPiece def : toResolve) {
             if (def instanceof LiteralPiece) { // literals fine as-is
-                ;
+                result.append(def);
             } else if (def instanceof PatternReference) {
                 String patternRef = def.getText();
                 LiteralPattern p = _patterns.get(patternRef);
@@ -150,25 +152,32 @@ public class CookedDefinitions
                     def.reportError("Referencing non-existing pattern '%%%s' from template '%s' (%s)",
                             patternRef, topName, _stackDesc("@", stack, result.getName()));
                 }
-                def = p;
+                result.append(p);
             } else if (def instanceof TemplateReference) {
                 if (stack == null) {
                     stack = new LinkedList<>();
                 }
                 TemplateReference ref = (TemplateReference) def;
                 CookedTemplate tmpl = _resolveTemplateReference(uncookedTemplates,
-                        uncookedTemplate.getName(), ref, stack, topName);
+                        name, ref, stack, topName);
                 // And for proper flattening, we'll just take out contents
                 for (DefPiece p : tmpl.getParts()) {
-                    result.addResolved(p);
+                    result.append(p);
                 }
-                continue;
+            } else if (def instanceof ExtractorExpression) {
+                ExtractorExpression raw = (ExtractorExpression) def;
+                ExtractorExpression resolved = raw.empty();
+                if (stack == null) {
+                    stack = new LinkedList<>();
+                }
+                // pass same name as we got, since we are not resolving other template
+                _resolveTemplateContents(uncookedTemplates, name,
+                        raw.getParts(), resolved, stack, topName);
+                result.append(resolved);
             } else {
                 _unrecognizedPiece(def, "template definition '"+topName+"'");
             }
-            result.addResolved(def);
         }
-        return result;
     }
 
     private CookedTemplate _resolveTemplateReference(Map<String,UncookedDefinition> uncookedTemplates,
@@ -192,11 +201,13 @@ public class CookedDefinitions
             ref.reportError("Referencing non-existing template '%%%s' (%s)",
                     toName, _stackDesc("@", stack, toName));
         }
-        CookedTemplate p = _resolveTemplate(uncookedTemplates, raw, stack, topName);
-        _templates.put(toName, p);
+        CookedTemplate result = CookedTemplate.construct(raw);
+        _resolveTemplateContents(uncookedTemplates,
+                result.getName(), result.getParts(), result, stack, topName);
+        _templates.put(toName, result);
         // but remove from stack
         stack.remove(stack.size()-1);
-        return p;
+        return result;
     }
 
     /*
