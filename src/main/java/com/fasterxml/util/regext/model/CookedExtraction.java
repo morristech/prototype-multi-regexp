@@ -51,4 +51,12 @@ public class CookedExtraction
     public Pattern getRegexp() {
         return _regexp;
     }
-}
+
+    public String getRegexpDesc() {
+        return _regexp.pattern();
+    }
+
+    public String[] getExtractedNames() {
+        return _extractorNames;
+    }
+    }

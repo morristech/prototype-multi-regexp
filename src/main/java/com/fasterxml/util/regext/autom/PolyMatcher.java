@@ -28,7 +28,6 @@ public class PolyMatcher
     private static Automata createAutomaton(List<String> patterns) {
         final List<Automaton> automata = new ArrayList<>();
         for (String ptn: patterns) {
-System.err.println("PATTERN: "+ptn);
             final Automaton automaton = new RegExp(ptn).toAutomaton();
             automaton.minimize();
             automata.add(automaton);
