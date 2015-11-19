@@ -1,6 +1,7 @@
 package com.fasterxml.util.regext.model;
 
 import java.util.*;
+import java.util.regex.Pattern;
 
 import com.fasterxml.util.regext.DefinitionParseException;
 
@@ -224,24 +225,155 @@ public class CookedDefinitions
      * have been resolved, flattened (to the degree they can be: extractors can be nested).
      * At this point translation into physical regexp input is needed.
      */
-    public void resolveExtractions(UncookedDefinitions uncooked)  throws DefinitionParseException
+    public void resolveExtractions(UncookedDefinitions uncooked)
+            throws DefinitionParseException
     {
         Map<String, UncookedExtraction> uncookedTemplates = uncooked.getExtractions();
+
         for (UncookedExtraction rawExtr : uncookedTemplates.values()) {
             UncookedDefinition rawTemplate = rawExtr.getTemplate();
             String name = rawTemplate.getName();
             CookedTemplate template = CookedTemplate.construct(rawTemplate);
             _resolveTemplateContents(Collections.<String,UncookedDefinition>emptyMap(),
                     rawTemplate.getName(), rawTemplate.getParts(), template, null, name);
-            // Ok. And then heavy-lifting...
+            // Ok. And then heavy-lifting... two main parts; conversion of regexps (automaton
+            // for multi-match; another regexp for actual extraction), then building
+            // of multi-matcher
 
-            //
+            StringBuilder automatonInput = new StringBuilder();
+            StringBuilder regexpInput = new StringBuilder();
+            List<String> extractorNameList = new ArrayList<>();
+
+            _resolveRegexps(template, automatonInput, regexpInput, extractorNameList);
+
+            String[] extractorNames = extractorNameList.toArray(new String[extractorNameList.size()]);
+            Pattern regexp = null;
+            try {
+                regexp = Pattern.compile(regexpInput.toString());
+            } catch (Exception e) {
+                rawTemplate.reportError("Invalid regular expression segment: %s", e.getMessage());
+            }
             
-            
-            _extractions.add(CookedExtraction.construct(rawExtr, template));
+            int index = _extractions.size();
+            _extractions.add(CookedExtraction.construct(index, rawExtr, template,
+                    regexp, extractorNames));
         }
     }
 
+    private void _resolveRegexps(DefPieceAppendable template,
+            StringBuilder automatonInput, StringBuilder regexpInput,
+            List<String> extractorNames)
+        throws DefinitionParseException
+    {
+        for (DefPiece part : template.getParts()) {
+            if (part instanceof LiteralText) {
+                StringBuilder sb = _quoteLiteralAsRegexp(part.getText());
+                automatonInput.append(sb);
+                regexpInput.append(sb);
+            } else if (part instanceof LiteralPattern) {
+                String ptext = part.getText();
+                _massagePatternForAutomaton(ptext, automatonInput);
+                _massagePatternForRegexp(ptext, regexpInput);
+            } else if (part instanceof ExtractorExpression) {
+                ExtractorExpression extr = (ExtractorExpression) part;
+                extractorNames.add(extr.getName());
+                // not sure if we need to enclose it for Automaton, but shouldn't hurt
+                automatonInput.append('(');
+                regexpInput.append('(');
+                // and for "regular" Regexp package, must add to get group
+                _resolveRegexps(extr, automatonInput, regexpInput, extractorNames);
+                automatonInput.append(')');
+                regexpInput.append(')');
+            } else {
+                part.getSource().reportError(part.getSourceOffset(),
+                        "Internal error: unrecognized DefPiece %s", part.getClass().getName());
+            }
+        }
+    }
+
+    private void _massagePatternForAutomaton(String pattern, StringBuilder sb)
+    {
+        // Anything to really qutoe for Automaton? Could perhaps translate some
+        // named escapes, but otherwise...
+        sb.append(pattern);
+    }
+
+    private void _massagePatternForRegexp(String pattern, StringBuilder sb)
+    {
+        // With "regular" regexps need to avoid capturing groups, and for that
+        // need to copy backslash escapes verbatim
+        final int end = pattern.length();
+
+        for (int i = 0; i < end; ++i) {
+            char c = pattern.charAt(i);
+
+            switch (c) {
+            case '\\':
+                sb.append(c);
+                // copy escaped, unless we are at end; end is probably an error condition
+                // but for now let's not care, should be caught by regexp parser if necessary
+                if (i < end) {
+                    sb.append(pattern.charAt(i++));
+                }
+                break;
+                
+            case '(':
+                // change to non-capturing
+                sb.append("(?:");
+                break;
+            default:
+                sb.append(c);
+            }
+        }
+    }
+
+    private StringBuilder _quoteLiteralAsRegexp(String text)
+    {
+        final int end = text.length();
+        
+        StringBuilder sb = new StringBuilder(end + 8);
+
+        for (int i = 0; i < end; ++i) {
+            char c = text.charAt(i);
+
+            switch (c) {
+            case ' ': // one of few special cases: collate, collapse into "one or more" style regexp
+            case '\t':
+                while ((i < end) && text.charAt(i) <= ' ') {
+                    ++i;
+                }
+                sb.append("[ \t]+");
+                break;
+
+            case '.':
+                sb.append("\\.");
+                break;
+
+                // Looks like we need to match not just open, but close parenthesis; probably same for others
+            case '(':
+            case ')':
+            case '[':
+            case ']':
+            case '\\':
+            case '{':
+            case '}':
+            case '|':
+            case '*':
+            case '?':
+            case '+':
+            case '$':
+            case '^':
+                sb.append('\\');
+                sb.append(c);
+                break;
+                
+            default:
+                sb.append(c);
+            }
+        }
+        return sb;
+    }
+    
     /*
     /**********************************************************************
     /* Helper methods

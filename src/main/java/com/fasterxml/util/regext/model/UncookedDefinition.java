@@ -2,6 +2,7 @@ package com.fasterxml.util.regext.model;
 
 import java.util.*;
 
+import com.fasterxml.util.regext.DefinitionParseException;
 import com.fasterxml.util.regext.io.InputLine;
 
 /**
@@ -64,5 +65,19 @@ public class UncookedDefinition
 
     public List<DefPiece> getParts() {
         return _parts;
+    }
+
+    public void reportError(String template, Object... args) throws DefinitionParseException {
+        InputLine source;
+        int offset;
+        if (_parts.isEmpty()) { // unlikely?
+            source = _source;
+            offset = 0;
+        } else {
+            DefPiece p = _parts.get(0);
+            source = p.getSource();
+            offset = p.getSourceOffset();
+        }
+        source.reportError(offset, template, args);
     }
 }

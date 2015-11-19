@@ -1,6 +1,7 @@
 package com.fasterxml.util.regext.model;
 
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import com.fasterxml.util.regext.io.InputLine;
 
@@ -10,19 +11,29 @@ public class CookedExtraction
     protected final String _name;
     protected final CookedTemplate _template;
     protected final Map<String,Object> _append;
-    
-    protected CookedExtraction(InputLine source, String name, CookedTemplate t,
-            Map<String,Object> append)
+
+    protected final Pattern _regexp;
+    protected final String[] _extractorNames;
+
+    protected CookedExtraction(InputLine source, String name,
+            int index, CookedTemplate t, Map<String,Object> append,
+            Pattern regexp, String[] extractorNames)
     {
         _source = source;
         _name = name;
         _template = t;
         _append = append;
+        _regexp = regexp;
+        _extractorNames = extractorNames;
     }
 
-    public static CookedExtraction construct(UncookedExtraction src, CookedTemplate tmpl) {
-        return new CookedExtraction(src.getSource(), src.getName(), tmpl, 
-                src.getAppends());
+    public static CookedExtraction construct(int index, UncookedExtraction src,
+            CookedTemplate tmpl,
+            Pattern regexp, String[] extractorNames)
+    {
+        return new CookedExtraction(src.getSource(), src.getName(),
+                index, tmpl, src.getAppends(),
+                regexp, extractorNames);
     }
 
     public String getName() {
@@ -35,5 +46,9 @@ public class CookedExtraction
 
     public Map<String,Object> getExtra() {
         return _append;
+    }
+
+    public Pattern getRegexp() {
+        return _regexp;
     }
 }

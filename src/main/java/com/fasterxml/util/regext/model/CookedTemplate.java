@@ -23,9 +23,20 @@ public class CookedTemplate
     }
 
     public static CookedTemplate construct(UncookedDefinition uncooked) {
+        List<DefPiece> uncookedParts = uncooked.getParts();
+        InputLine source;
+        int offset;
+        if (uncookedParts.isEmpty()) {
+            source = uncooked.getSource();
+            offset = 0;
+        } else {
+            DefPiece p = uncookedParts.get(0);
+            source = p.getSource();
+            offset = p.getSourceOffset();
+        }
         // could get offset of the first piece, which points to name. But for now let's not bother
-        return new CookedTemplate(uncooked.getSource(), 0, uncooked.getName(),
-                new ArrayList<DefPiece>(Math.min(4, uncooked.getParts().size())));
+        return new CookedTemplate(source, offset, uncooked.getName(),
+                new ArrayList<DefPiece>(Math.min(4, uncookedParts.size())));
     }
 
     @Override
@@ -38,4 +49,6 @@ public class CookedTemplate
 
     @Override
     public Iterable<DefPiece> getParts() { return _parts; }
+
+    public InputLine getSource() { return _source; }
 }
