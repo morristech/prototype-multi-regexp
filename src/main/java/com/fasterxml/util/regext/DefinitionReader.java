@@ -30,28 +30,31 @@ public class DefinitionReader
     protected final UncookedDefinitions _uncooked;
 
     protected final CookedDefinitions _cooked;
-    
+
     protected DefinitionReader(InputLineReader lineReader) {
         _lineReader = lineReader;
         _uncooked = new UncookedDefinitions();
         _cooked = new CookedDefinitions();
     }
 
-    @SuppressWarnings("resource")
     public static DefinitionReader reader(File input) throws IOException
     {
         InputStream in = new FileInputStream(input);
         String srcRef = "file '"+input.getAbsolutePath()+"'";
-        return new DefinitionReader(InputLineReader.construct(srcRef, in));
+        return reader(InputLineReader.construct(srcRef, in, true));
     }
 
     public static DefinitionReader reader(String contents) throws IOException
     {
         Reader r = new StringReader(contents);
         String srcRef = "<input string>";
-        return new DefinitionReader(InputLineReader.construct(srcRef, r));
+        return reader(InputLineReader.construct(srcRef, r, true));
     }
 
+    public static DefinitionReader reader(InputLineReader lines) throws IOException {
+        return new DefinitionReader(lines);
+    }
+    
     public ExtractionDefinition read() throws IOException {
         readUncooked();
         resolvePatterns();

@@ -11,13 +11,18 @@ public class CookedExtraction
     protected final CookedTemplate _template;
     protected final Map<String,Object> _append;
     
-    public CookedExtraction(InputLine source, String name, CookedTemplate t,
+    protected CookedExtraction(InputLine source, String name, CookedTemplate t,
             Map<String,Object> append)
     {
         _source = source;
         _name = name;
         _template = t;
         _append = append;
+    }
+
+    public static CookedExtraction construct(UncookedExtraction src, CookedTemplate tmpl) {
+        return new CookedExtraction(src.getSource(), src.getName(), tmpl, 
+                src.getAppends());
     }
 
     public String getName() {

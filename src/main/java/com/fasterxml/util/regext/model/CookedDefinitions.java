@@ -219,6 +219,11 @@ public class CookedDefinitions
     /**********************************************************************
      */
 
+    /**
+     * Final resolution method called when all named patterns, templates and inline extractors
+     * have been resolved, flattened (to the degree they can be: extractors can be nested).
+     * At this point translation into physical regexp input is needed.
+     */
     public void resolveExtractions(UncookedDefinitions uncooked)  throws DefinitionParseException
     {
         Map<String, UncookedExtraction> uncookedTemplates = uncooked.getExtractions();
@@ -228,7 +233,12 @@ public class CookedDefinitions
             CookedTemplate template = CookedTemplate.construct(rawTemplate);
             _resolveTemplateContents(Collections.<String,UncookedDefinition>emptyMap(),
                     rawTemplate.getName(), rawTemplate.getParts(), template, null, name);
-            _extractions.add(rawExtr.resolve(template));
+            // Ok. And then heavy-lifting...
+
+            //
+            
+            
+            _extractions.add(CookedExtraction.construct(rawExtr, template));
         }
     }
 

@@ -24,15 +24,19 @@ public class UncookedExtraction
         _append = append;
     }
 
-    public CookedExtraction resolve(CookedTemplate template) {
-        return new CookedExtraction(_source, _name, template, _append);
+    public InputLine getSource() {
+        return _source;
     }
-    
+
     public String getName() {
         return _name;
     }
 
     public UncookedDefinition getTemplate() {
         return _template;
+    }
+
+    public Map<String,Object> getAppends() {
+        return _append;
     }
 }

@@ -77,7 +77,7 @@ public class InputLineReaderTest extends TestBase
     protected List<InputLine> _readAllLines(Reader r) throws IOException
     {
         ArrayList<InputLine> lines = new ArrayList<>();
-        InputLineReader lineReader = InputLineReader.construct("<test>", r);
+        InputLineReader lineReader = InputLineReader.construct("<test>", r, true);
         InputLine l;
 
         while ((l = lineReader.nextLine()) != null) {

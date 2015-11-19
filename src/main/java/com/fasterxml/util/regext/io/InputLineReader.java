@@ -19,41 +19,47 @@ import java.io.*;
  *</ol>
  */
 public class InputLineReader
+    implements Closeable
 {
     protected final Object _sourceRef;
 
     protected final BufferedReader _reader;
 
+    protected final boolean _autoClose;
+    
+    protected boolean _closed;
+    
     /**
      * Row is 1-based, but advanced after reading physical line; hence this
      * always refers to the row that was just read (and 0 before any reads).
      */
     protected int _row = 0;
 
-    protected InputLineReader(Object srcRef, BufferedReader r) {
+    protected InputLineReader(Object srcRef, BufferedReader r, boolean autoClose) {
         _sourceRef = srcRef;
         _reader = r;
+        _autoClose = autoClose;
     }
 
-    public static InputLineReader construct(Object srcRef, InputStream in) throws IOException {
-        return construct(srcRef, new InputStreamReader(in, "UTF-8"));
+    public static InputLineReader construct(Object srcRef, InputStream in, boolean autoClose) throws IOException {
+        return construct(srcRef, new InputStreamReader(in, "UTF-8"), autoClose);
     }
 
-    public static InputLineReader construct(Object srcRef, Reader r) throws IOException {
+    public static InputLineReader construct(Object srcRef, Reader r, boolean autoClose) throws IOException {
         BufferedReader br = (r instanceof BufferedReader)
                 ? ((BufferedReader) r)
                         : new BufferedReader(r);
-        return new InputLineReader(srcRef, br);
+        return new InputLineReader(srcRef, br, autoClose);
     }
 
-    public void close() {
-        try {
+    @Override
+    public void close() throws IOException {
+        if (!_closed) {
+            _closed = true;
             _reader.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
-    
+
     public InputLine nextLine() throws IOException
     {
         String line = _nextContentLine();
@@ -83,16 +89,22 @@ public class InputLineReader
     }
 
     public void reportError(String template, Object... args) throws IOException {
-    	String msg = (args.length == 0) ? template
+        String msg = (args.length == 0) ? template
     			: String.format(template, args);
         throw new IOException(String.format("(%s, row %d): %s", _sourceRef, _row, msg));
     }
     
     protected String _nextContentLine() throws IOException
     {
+        if (_closed) {
+            return null;
+        }
         while (true) {
             String line = _reader.readLine();
             if (line == null) {
+                if (_autoClose) {
+                    close();
+                }
                 return line;
             }
             ++_row;
