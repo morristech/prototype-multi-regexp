@@ -54,14 +54,17 @@ public class DefinitionReader
     public static DefinitionReader reader(InputLineReader lines) throws IOException {
         return new DefinitionReader(lines);
     }
-    
+
     public ExtractionDefinition read() throws IOException {
         readUncooked();
-        resolvePatterns();
-        resolveTemplates();
-        resolveExtractions();
 
-        return ExtractionDefinition.construct(_cooked);
+        if (_uncooked.getExtractions().isEmpty()) {
+            // We don't have InputLine (necessarily) to indicate, but do want to use
+            // DefinitionParseException, so need to do:
+            throw DefinitionParseException.construct("No extraction definitions found from definition",
+                    null, 0);
+        }
+        return resolveAll();
     }
 
     /*
@@ -69,6 +72,11 @@ public class DefinitionReader
     /* Test support
     /**********************************************************************
      */
+    ExtractionDefinition resolveAll() throws DefinitionParseException {
+        resolvePatterns();
+        resolveTemplates();
+        return resolveExtractions();
+    }
 
     void resolvePatterns() throws DefinitionParseException {
         _cooked.resolvePatterns(_uncooked);
@@ -78,8 +86,8 @@ public class DefinitionReader
         _cooked.resolveTemplates(_uncooked);
     }
 
-    void resolveExtractions() throws DefinitionParseException {
-        _cooked.resolveExtractions(_uncooked);
+    ExtractionDefinition resolveExtractions() throws DefinitionParseException {
+        return _cooked.resolveExtractions(_uncooked);
     }
     
     /*

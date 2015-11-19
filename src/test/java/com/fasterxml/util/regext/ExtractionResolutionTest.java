@@ -56,4 +56,19 @@ public class ExtractionResolutionTest extends TestBase
         _assertPart(parts.get(1), LiteralText.class, ":");
         _assertPart(parts.get(2), LiteralPattern.class, "\\w+");
     }
+
+    // // // Failing tests
+    
+    public void testEmpty() throws Exception
+    {
+        final String DEF = "pattern %a a\n"+
+"template @base (%a:foo)\n";
+        DefinitionReader defR = DefinitionReader.reader(DEF);
+        try {
+            defR.read();
+            fail("Should have failed due to no extractions");
+        } catch (DefinitionParseException e) {
+            verifyException(e, "No extraction definitions found");
+        }
+    }
 }

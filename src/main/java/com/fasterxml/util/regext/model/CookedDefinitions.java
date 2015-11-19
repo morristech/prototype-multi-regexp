@@ -4,6 +4,8 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 import com.fasterxml.util.regext.DefinitionParseException;
+import com.fasterxml.util.regext.ExtractionDefinition;
+import com.fasterxml.util.regext.autom.PolyMatcher;
 
 public class CookedDefinitions
 {
@@ -225,10 +227,12 @@ public class CookedDefinitions
      * have been resolved, flattened (to the degree they can be: extractors can be nested).
      * At this point translation into physical regexp input is needed.
      */
-    public void resolveExtractions(UncookedDefinitions uncooked)
+    public ExtractionDefinition resolveExtractions(UncookedDefinitions uncooked)
             throws DefinitionParseException
     {
         Map<String, UncookedExtraction> uncookedTemplates = uncooked.getExtractions();
+        final int ecount = uncookedTemplates.size();
+        List<String> automatonInputs = new ArrayList<>(ecount);
 
         for (UncookedExtraction rawExtr : uncookedTemplates.values()) {
             UncookedDefinition rawTemplate = rawExtr.getTemplate();
@@ -245,7 +249,9 @@ public class CookedDefinitions
             List<String> extractorNameList = new ArrayList<>();
 
             _resolveRegexps(template, automatonInput, regexpInput, extractorNameList);
+            automatonInputs.add(automatonInput.toString());
 
+            // Start with regexp itself
             String[] extractorNames = extractorNameList.toArray(new String[extractorNameList.size()]);
             Pattern regexp = null;
             try {
@@ -258,6 +264,10 @@ public class CookedDefinitions
             _extractions.add(CookedExtraction.construct(index, rawExtr, template,
                     regexp, extractorNames));
         }
+        
+        // With that, can try constructing multi-matcher
+        PolyMatcher poly = PolyMatcher.create(automatonInputs);
+        return ExtractionDefinition.construct(this, poly);
     }
 
     private void _resolveRegexps(DefPieceAppendable template,
@@ -333,8 +343,8 @@ public class CookedDefinitions
         
         StringBuilder sb = new StringBuilder(end + 8);
 
-        for (int i = 0; i < end; ++i) {
-            char c = text.charAt(i);
+        for (int i = 0; i < end; ) {
+            char c = text.charAt(i++);
 
             switch (c) {
             case ' ': // one of few special cases: collate, collapse into "one or more" style regexp
