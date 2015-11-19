@@ -1,9 +1,9 @@
 package com.fasterxml.util.regext.util;
 
-import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.fasterxml.util.regext.DefinitionParseException;
 import com.fasterxml.util.regext.io.InputLine;
 
 public class TokenHelper
@@ -76,7 +76,7 @@ public class TokenHelper
      * starts from the first character position.
      */
     public static StringAndOffset parseNameAndSkipSpace(String type, InputLine inputLine,
-            String contents, int ix) throws IOException
+            String contents, int ix) throws DefinitionParseException
     {
         StringAndOffset offset = parseName(type, inputLine, contents, ix);
         // and skip whitespace, if any
@@ -104,7 +104,7 @@ public class TokenHelper
      * starts from the first character position.
      */
     public static StringAndOffset parseName(String type, InputLine inputLine,
-            String contents, int ix) throws IOException
+            String contents, int ix) throws DefinitionParseException
     {
         // Two options: quoted, unquoted; and two types of quotes as well
         final int end = contents.length();
@@ -149,7 +149,7 @@ public class TokenHelper
      * nested {...} constructs.
      */
     public static StringAndOffset parseInlinePattern(InputLine inputLine,
-            String contents, int start) throws IOException
+            String contents, int start) throws DefinitionParseException
     {
         final int end = contents.length();
         int nesting = 1;

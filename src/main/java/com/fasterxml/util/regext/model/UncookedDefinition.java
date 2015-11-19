@@ -41,6 +41,12 @@ public class UncookedDefinition
         _parts.add(new TemplateReference(_source, offset, name));
     }
 
+    public ExtractorPiece appendExtractor(String name, int offset) {
+        ExtractorPiece extr = new ExtractorPiece(_source, offset, name);
+        _parts.add(extr);
+        return extr;
+    }
+    
     public String getName() {
         return _name;
     }

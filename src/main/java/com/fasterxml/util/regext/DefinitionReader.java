@@ -111,7 +111,7 @@ public class DefinitionReader
     /**********************************************************************
      */
     
-    private void readPatternDefinition(InputLine line, int offset) throws IOException
+    private void readPatternDefinition(InputLine line, int offset) throws DefinitionParseException
     {
         final String contents = line.getContents();
         int ix = TokenHelper.findTypeMarker('%', contents, offset);
@@ -177,7 +177,7 @@ public class DefinitionReader
         }
     }
 
-    private void readTemplateDefinition(InputLine line, int offset) throws IOException
+    private void readTemplateDefinition(InputLine line, int offset) throws DefinitionParseException
     {
         final String contents = line.getContents();
         int ix = TokenHelper.findTypeMarker('@', contents, offset);
@@ -194,18 +194,27 @@ public class DefinitionReader
         if (old != null) {
             line.reportError(offset, "Duplicate template definition for name '%s'", name);
         }
-        offset = p.restOffset;
+        _readTemplateContents(line, p.restOffset, unp);
+    }
 
+    /**
+     * Shared parsing method implementation that handles parsing of contents of either
+     * template, or extractor.
+     */
+    private void _readTemplateContents(InputLine line, int ix, UncookedDefinition template,
+            int parenCount)
+        throws DefinitionParseException
+    {
         // And then need to find template AND pattern references, literal patterns
+        final String contents = line.getContents();
         final int end = contents.length();
         StringBuilder sb = new StringBuilder();
-        ix = offset;
-        int literalStart = offset;
+        int literalStart = ix;
         while (ix < end) {
             char c = contents.charAt(ix++);
-            if ((c == '%') || (c == '@')) {
+            if ((c == '%') || (c == '@') || (c == '$')) {
                 if (ix == end) {
-                    line.reportError(ix, "Orphan '%c' at end of template '%s' definition", c, name);
+                    line.reportError(ix, "Orphan '%c' at end of template '%s' definition", c, template.getName());
                 }
                 // doubling up used as escaping mechanism:
                 char d = contents.charAt(ix);
@@ -215,35 +224,62 @@ public class DefinitionReader
                     continue;
                 }
                 if (sb.length() > 0) {
-                    unp.appendLiteralText(sb.toString(), literalStart);
+                    template.appendLiteralText(sb.toString(), literalStart);
                     sb.setLength(0);
                 }
 
                 // literal patterns allowed
+                StringAndOffset p;
                 if (c == '%') {
                     if (d == '{') {
                         ++ix;
                         p = TokenHelper.parseInlinePattern(line, contents, ix);
-                        unp.appendLiteralPattern(p.match, ix);
+                        template.appendLiteralPattern(p.match, ix);
                     } else {
                         // otherwise named ref
                         p = TokenHelper.parseName("pattern", line, contents, ix);
-                        unp.appendPatternRef(p.match, ix);
+                        template.appendPatternRef(p.match, ix);
                     }
-                } else { // template, only named refs
+                    ix = p.restOffset;
+                } else if (c == '@') { // template, only named refs
                     p = TokenHelper.parseName("template", line, contents, ix);
-                    unp.appendTemplateRef(p.match, ix);
+                    template.appendTemplateRef(p.match, ix);
+                    ix = p.restOffset;
+                } else { // must be '$', extractor definition
+                    p = TokenHelper.parseName("extractor", line, contents, ix);
+                    ExtractorPiece extr = template.appendExtractor(p.match, ix);
+                    // That was simple, but now need to decode contents, recursively
+                    ix = _readInlineExtractor(line, ix, extr);
                 }
-                ix = p.restOffset;
-                literalStart = offset;
+                literalStart = ix;
                 continue;
             }
             sb.append(c);
         }
 
         if (sb.length() > 0) {
-            unp.appendLiteralText(sb.toString(), literalStart);
+            template.appendLiteralText(sb.toString(), literalStart);
         }
+    }
+
+    /**
+     * Method that will read contents of a given inline extractor definition, up to
+     * closing parenthesis
+     */
+    private int _readInlineExtractor(InputLine line, int ix, ExtractorPiece extr)
+        throws DefinitionParseException
+    {
+        final String contents = line.getContents();
+        final int end = contents.length();
+
+        if ((ix >= end) || contents.charAt(ix) != '(') {
+            line.reportError(ix, "Invalid declaration for extractor '%s': missing opening parenthesis",
+                    extr.getName());
+        }
+        ++ix;
+        
+        // !!! TODO
+        return ix;
     }
 
     private void readExtractionDefinition(InputLine line, int offset) throws IOException
