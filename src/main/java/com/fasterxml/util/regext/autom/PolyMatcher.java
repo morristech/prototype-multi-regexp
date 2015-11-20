@@ -28,9 +28,13 @@ public class PolyMatcher
     private static Automata createAutomaton(List<String> patterns) {
         final List<Automaton> automata = new ArrayList<>();
         for (String ptn: patterns) {
-            final Automaton automaton = new RegExp(ptn).toAutomaton();
-            automaton.minimize();
-            automata.add(automaton);
+            try {
+                Automaton automaton = new RegExp(ptn).toAutomaton();
+                automaton.minimize();
+                automata.add(automaton);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid regexp, "+e.getMessage()+", source: "+ptn);
+            }
         }
         return Automata.construct(automata);
     }

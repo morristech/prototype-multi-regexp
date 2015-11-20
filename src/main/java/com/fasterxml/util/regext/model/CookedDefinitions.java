@@ -266,7 +266,16 @@ public class CookedDefinitions
         }
         
         // With that, can try constructing multi-matcher
-        PolyMatcher poly = PolyMatcher.create(automatonInputs);
+        PolyMatcher poly = null;
+        try {
+            poly = PolyMatcher.create(automatonInputs);
+        } catch (Exception e) {
+            DefinitionParseException pe = DefinitionParseException.construct(
+                    "Internal error: problem with PolyMatcher construction: "+ e.getMessage(),
+                    null, 0);
+            pe.initCause(e);
+            throw pe;
+        }
         return ExtractionDefinition.construct(this, poly);
     }
 
@@ -373,6 +382,9 @@ public class CookedDefinitions
             case '+':
             case '$':
             case '^':
+                // Automaton has heartburn with less-than
+            case '<':
+            case '>':
                 sb.append('\\');
                 sb.append(c);
                 break;
