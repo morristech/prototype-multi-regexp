@@ -21,7 +21,7 @@ public class PolyMatchTest extends TestBase
 "}\n"+
                     "";
         DefinitionReader defR = DefinitionReader.reader(DEF);
-        ExtractionDefinition def = defR.read();
+        RegExtractor def = defR.read();
         PolyMatcher matcher = def.getMatcher();
 
         int[] matches = matcher.match("value=stuff");
@@ -46,7 +46,7 @@ public class PolyMatchTest extends TestBase
     "";
 
         DefinitionReader defR = DefinitionReader.reader(DEF);
-        ExtractionDefinition def = defR.read();
+        RegExtractor def = defR.read();
         PolyMatcher matcher = def.getMatcher();
 
         int[] matches = matcher.match("<123> (foo)[bar] 12:30:58 end:'15:07:00Z' THE END.");
@@ -80,7 +80,7 @@ public class PolyMatchTest extends TestBase
                 ;
         
         DefinitionReader defR = DefinitionReader.reader(DEF);
-        ExtractionDefinition def = defR.read();
+        RegExtractor def = defR.read();
         PolyMatcher matcher = def.getMatcher();
 
         int[] matches = matcher.match(INPUT);

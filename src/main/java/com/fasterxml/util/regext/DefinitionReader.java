@@ -55,7 +55,12 @@ public class DefinitionReader
         return new DefinitionReader(lines);
     }
 
-    public ExtractionDefinition read() throws IOException {
+    /**
+     * Method used to fully read the input definition, resolve all included
+     * patterns, templates, extractors and extractions, and construct and
+     * return resulting {@link RegExtractor}.
+     */
+    public RegExtractor read() throws IOException {
         readUncooked();
 
         if (_uncooked.getExtractions().isEmpty()) {
@@ -72,7 +77,7 @@ public class DefinitionReader
     /* Test support
     /**********************************************************************
      */
-    ExtractionDefinition resolveAll() throws DefinitionParseException {
+    RegExtractor resolveAll() throws DefinitionParseException {
         resolvePatterns();
         resolveTemplates();
         return resolveExtractions();
@@ -86,7 +91,7 @@ public class DefinitionReader
         _cooked.resolveTemplates(_uncooked);
     }
 
-    ExtractionDefinition resolveExtractions() throws DefinitionParseException {
+    RegExtractor resolveExtractions() throws DefinitionParseException {
         return _cooked.resolveExtractions(_uncooked);
     }
     

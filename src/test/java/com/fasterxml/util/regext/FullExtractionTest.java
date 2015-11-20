@@ -17,7 +17,7 @@ public class FullExtractionTest extends TestBase
 "}\n"+
                     "";
         DefinitionReader defR = DefinitionReader.reader(DEF);
-        ExtractionDefinition def = defR.read();
+        RegExtractor def = defR.read();
 
         ExtractionResult result = def.match("value=foobar");
         assertNotNull(result);
@@ -51,7 +51,7 @@ public class FullExtractionTest extends TestBase
 "}\n"+
                     "";
         DefinitionReader defR = DefinitionReader.reader(DEF);
-        ExtractionDefinition def = defR.read();
+        RegExtractor def = defR.read();
         String INPUT = "<86>2015-05-12T20:57:53.302858+00:00 10.1.11.141 RealSource: \"10.10.5.3\"";
 
         ExtractionResult result = def.match(INPUT);
@@ -102,7 +102,7 @@ public class FullExtractionTest extends TestBase
 
         // Minor simplification, used single-quotes for doubles above, change back
         DefinitionReader defR = DefinitionReader.reader(DEF.replace('\'', '"'));
-        ExtractionDefinition def = defR.read();
+        RegExtractor def = defR.read();
 
         // First things first, verify that @base matches
         String INPUT = "<86>2015-05-12T20:57:53.302858+00:00 10.1.11.141 RealSource:   '10.10.5.3'"

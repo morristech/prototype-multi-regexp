@@ -9,10 +9,12 @@ import com.fasterxml.util.regext.model.CookedDefinitions;
 import com.fasterxml.util.regext.model.CookedExtraction;
 
 /**
- * Container for the fully processed definition of Extraction as read
- * from definition.
+ * Processor built from a definition that is used to actually extract
+ * information out of input lines.
+ *<p>
+ * Instances are fully thread-safe and may be used concurrently.
  */
-public class ExtractionDefinition
+public class RegExtractor
 {
     /**
      * Multi-expression matcher that is capable of figuring out which extraction
@@ -23,17 +25,17 @@ public class ExtractionDefinition
 
     protected final CookedExtraction[] _extractions;
 
-    protected ExtractionDefinition(PolyMatcher matcher, CookedExtraction[] extr) {
+    protected RegExtractor(PolyMatcher matcher, CookedExtraction[] extr) {
         _matcher = matcher;
         _extractions = extr;
     }
 
-    public static ExtractionDefinition construct(CookedDefinitions defs,
+    public static RegExtractor construct(CookedDefinitions defs,
             PolyMatcher matcher)
     {
         List<CookedExtraction> extrL = defs.getExtractions();
         CookedExtraction[] extr = extrL.toArray(new CookedExtraction[extrL.size()]);
-        return new ExtractionDefinition(matcher, extr);
+        return new RegExtractor(matcher, extr);
     }
 
     public List<CookedExtraction> getExtractions() {

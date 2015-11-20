@@ -4,6 +4,10 @@ import java.io.IOException;
 
 import com.fasterxml.util.regext.io.InputLine;
 
+/**
+ * Exception type used to indicate problems during reading of
+ * a definition, using {@link DefinitionReader}.
+ */
 public class DefinitionParseException extends IOException
 {
     private static final long serialVersionUID = 1L;

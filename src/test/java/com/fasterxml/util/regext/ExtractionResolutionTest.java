@@ -23,7 +23,7 @@ public class ExtractionResolutionTest extends TestBase
         assertEquals(1, defR._uncooked.getTemplates().size());
         assertEquals(1, defR._uncooked.getExtractions().size());
 
-        ExtractionDefinition fullDef = defR.read();
+        RegExtractor fullDef = defR.read();
 
         List<CookedExtraction> extras = fullDef.getExtractions();
         assertEquals(1, extras.size());

@@ -3,7 +3,8 @@ package com.fasterxml.util.regext;
 import java.io.IOException;
 
 /**
- * Exception used to indicate a problem in executing extraction.
+ * Exception used to indicate a problems occuring during
+ * extraction process (by {@link RegExtractor}.
  */
 public class ExtractionException extends IOException
 {

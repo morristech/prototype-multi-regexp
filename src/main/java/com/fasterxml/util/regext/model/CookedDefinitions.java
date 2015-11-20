@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 import com.fasterxml.util.regext.DefinitionParseException;
-import com.fasterxml.util.regext.ExtractionDefinition;
+import com.fasterxml.util.regext.RegExtractor;
 import com.fasterxml.util.regext.autom.PolyMatcher;
 import com.fasterxml.util.regext.util.RegexHelper;
 
@@ -228,7 +228,7 @@ public class CookedDefinitions
      * have been resolved, flattened (to the degree they can be: extractors can be nested).
      * At this point translation into physical regexp input is needed.
      */
-    public ExtractionDefinition resolveExtractions(UncookedDefinitions uncooked)
+    public RegExtractor resolveExtractions(UncookedDefinitions uncooked)
             throws DefinitionParseException
     {
         Map<String, UncookedExtraction> uncookedTemplates = uncooked.getExtractions();
@@ -277,7 +277,7 @@ public class CookedDefinitions
             pe.initCause(e);
             throw pe;
         }
-        return ExtractionDefinition.construct(this, poly);
+        return RegExtractor.construct(this, poly);
     }
 
     private void _resolveRegexps(DefPieceAppendable template,
