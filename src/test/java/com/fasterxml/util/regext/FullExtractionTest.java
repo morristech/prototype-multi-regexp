@@ -19,7 +19,7 @@ public class FullExtractionTest extends TestBase
         DefinitionReader defR = DefinitionReader.reader(DEF);
         RegExtractor def = defR.read();
 
-        ExtractionResult result = def.match("value=foobar");
+        ExtractionResult result = def.extract("value=foobar");
         assertNotNull(result);
         assertEquals("single", result.getId());
         Map<String,Object> stuff = result.asMap("id");
@@ -27,7 +27,7 @@ public class FullExtractionTest extends TestBase
         assertEquals("foobar", stuff.get("value"));
         assertEquals(2, stuff.size());
 
-        result = def.match("prefix value=a value2=b");
+        result = def.extract("prefix value=a value2=b");
         assertNotNull(result);
         assertEquals("double", result.getId());
         stuff = result.asMap("id");
@@ -54,7 +54,7 @@ public class FullExtractionTest extends TestBase
         RegExtractor def = defR.read();
         String INPUT = "<86>2015-05-12T20:57:53.302858+00:00 10.1.11.141 RealSource: \"10.10.5.3\"";
 
-        ExtractionResult result = def.match(INPUT);
+        ExtractionResult result = def.extract(INPUT);
         assertNotNull(result);
         assertEquals("interm", result.getId());
         Map<String,Object> values = result.asMap(null);
@@ -109,7 +109,7 @@ public class FullExtractionTest extends TestBase
                 +" Environment: 'TEST' UUID: 'NO'"
                 +" RawMsg: <123>something 1324 more-or-less google.com sshd[137]";
         
-        ExtractionResult result = def.match(INPUT.replace('\'', '"'));
+        ExtractionResult result = def.extract(INPUT.replace('\'', '"'));
         assertNotNull(result);
         
         INPUT = "<86>2015-05-12T20:57:53.302858+00:00 10.1.11.141 RealSource:   '10.10.5.3'"
@@ -117,7 +117,7 @@ public class FullExtractionTest extends TestBase
                 +" RawMsg: <123>something 1324 more-or-less google.com sshd[137]"
                 +": Accepted keyboard-interactive/pam for badguy.ru from 1.2.3.4 port 58216 ssh2"
                 ;
-        result = def.match(INPUT.replace('\'', '"'));
+        result = def.extract(INPUT.replace('\'', '"'));
         assertNotNull(result);
         assertEquals("sshdMatch", result.getId());
         Map<String,Object> values = result.asMap(null);

@@ -11,6 +11,20 @@ for actual value extraction.
 
 (to be completed)
 
+## Basic usage
+
+```java
+DefinitionReader r = DefinitionReader.reader(new File("extractions.conf"));
+RegExtractor extractor = r.read();
+final String TEST_INPUT = "prefix: time=12546778 verb=PUT";
+ExtractionResult result = extractor.extract(TEST_INPUT);
+if (result == null) { // no match, handle
+   throw new IllegalArgumentException("no match!");
+}
+Map<String,Object> properties = asMap();
+// and then use extracted property values
+```
+
 ## Extractor input definition
 
 (to be completed)

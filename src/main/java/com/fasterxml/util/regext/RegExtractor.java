@@ -52,8 +52,8 @@ public class RegExtractor
      * by multi-matcher fails for some reason (internal problem with
      * translations), a {@link ExtractionException} will be thrown.
      */
-    public ExtractionResult match(String input) throws ExtractionException {
-        return match(input, false);
+    public ExtractionResult extract(String input) throws ExtractionException {
+        return extract(input, false);
     }
 
     /**
@@ -62,11 +62,11 @@ public class RegExtractor
      * matchers are not properly translated; but if so, it is preferable to
      * get a lower-precedence match, or possible none at all.
      */
-    public ExtractionResult matchSafe(String input) throws ExtractionException {
-        return match(input, true);
+    public ExtractionResult extractSafe(String input) throws ExtractionException {
+        return extract(input, true);
     }
     
-    public ExtractionResult match(String input, boolean allowFallbacks) throws ExtractionException
+    public ExtractionResult extract(String input, boolean allowFallbacks) throws ExtractionException
     {
         int[] matchIndexes = _matcher.match(input);
         if (matchIndexes.length == 0) {
