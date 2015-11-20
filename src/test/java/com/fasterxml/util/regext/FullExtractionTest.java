@@ -48,8 +48,8 @@ public class FullExtractionTest extends TestBase
 "pattern %ip %phrase\n"+
 "pattern %any (.*)\n"+
 "extract interm {  \n"+
-//"  template <%num>$eventTimeStamp(%ts) $logAgent(%ip) RealSource: \"$logSrcIp(%ip)%any\"\n"+
-"  template <%num>$eventTimeStamp(%ts)%any\"\n"+
+"  template <%num>$eventTimeStamp(%ts) $logAgent(%ip) RealSource: \"$logSrcIp(%ip)\"%any\n"+
+//"  template <%num>$eventTimeStamp(%ts)%any\n"+
 "}\n"+
                     "";
         DefinitionReader defR = DefinitionReader.reader(DEF);

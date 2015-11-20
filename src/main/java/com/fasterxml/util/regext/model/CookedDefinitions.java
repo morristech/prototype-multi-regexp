@@ -6,6 +6,7 @@ import java.util.regex.Pattern;
 import com.fasterxml.util.regext.DefinitionParseException;
 import com.fasterxml.util.regext.ExtractionDefinition;
 import com.fasterxml.util.regext.autom.PolyMatcher;
+import com.fasterxml.util.regext.util.RegexHelper;
 
 public class CookedDefinitions
 {
@@ -286,9 +287,9 @@ public class CookedDefinitions
     {
         for (DefPiece part : template.getParts()) {
             if (part instanceof LiteralText) {
-                StringBuilder sb = _quoteLiteralAsRegexp(part.getText());
-                automatonInput.append(sb);
-                regexpInput.append(sb);
+                String q = RegexHelper.quoteLiteralAsRegexp(part.getText());
+                automatonInput.append(q);
+                regexpInput.append(q);
             } else if (part instanceof LiteralPattern) {
                 String ptext = part.getText();
                 _massagePatternForAutomaton(ptext, automatonInput);
@@ -344,56 +345,6 @@ public class CookedDefinitions
                 sb.append(c);
             }
         }
-    }
-
-    private StringBuilder _quoteLiteralAsRegexp(String text)
-    {
-        final int end = text.length();
-        
-        StringBuilder sb = new StringBuilder(end + 8);
-
-        for (int i = 0; i < end; ) {
-            char c = text.charAt(i++);
-
-            switch (c) {
-            case ' ': // one of few special cases: collate, collapse into "one or more" style regexp
-            case '\t':
-                while ((i < end) && text.charAt(i) <= ' ') {
-                    ++i;
-                }
-                sb.append("[ \t]+");
-                break;
-
-            case '.':
-                sb.append("\\.");
-                break;
-
-                // Looks like we need to match not just open, but close parenthesis; probably same for others
-            case '(':
-            case ')':
-            case '[':
-            case ']':
-            case '\\':
-            case '{':
-            case '}':
-            case '|':
-            case '*':
-            case '?':
-            case '+':
-            case '$':
-            case '^':
-                // Automaton has heartburn with less-than
-            case '<':
-            case '>':
-                sb.append('\\');
-                sb.append(c);
-                break;
-                
-            default:
-                sb.append(c);
-            }
-        }
-        return sb;
     }
     
     /*

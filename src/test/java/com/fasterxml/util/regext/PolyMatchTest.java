@@ -32,4 +32,25 @@ public class PolyMatchTest extends TestBase
         assertEquals(1, matches.length);
         assertEquals(0, matches[0]);
     }
+
+    public void testIntermediate() throws Exception
+    {
+        final String DEF =
+"pattern %phrase [^ \\t]+\n"+
+"pattern %num [0-9]+\n"+
+"pattern %ts %phrase\n"+
+"extract interm {  \n"+
+"  template <%num>$eventTimeStamp(%ts)\n"+
+"}\n"+
+    "";
+
+        DefinitionReader defR = DefinitionReader.reader(DEF);
+        ExtractionDefinition def = defR.read();
+        PolyMatcher matcher = def.getMatcher();
+
+        int[] matches = matcher.match("<123>12:30:58");
+        assertEquals(1, matches.length);
+        assertEquals(0, matches[0]);
+
+    }
 }
