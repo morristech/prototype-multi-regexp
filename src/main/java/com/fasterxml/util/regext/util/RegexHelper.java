@@ -2,6 +2,10 @@ package com.fasterxml.util.regext.util;
 
 public class RegexHelper
 {
+    public final static String CHAR_CLASS_AUTOMATON_d = "0-9"  ;
+    public final static String CHAR_CLASS_AUTOMATON_s = " \b\f\n\r\t";
+    public final static String CHAR_CLASS_AUTOMATON_w = "a-zA-Z_0-9";
+
     public static String quoteLiteralAsRegexp(String text)
     {
         final int end = text.length();
@@ -56,6 +60,13 @@ public class RegexHelper
         return sb.toString();
     }
 
+    // for tests
+    protected static String massageRegexpForAutomaton(String pattern) {
+        StringBuilder sb = new StringBuilder();
+        massageRegexpForAutomaton(pattern, sb);
+        return sb.toString();
+    }
+    
     public static void massageRegexpForAutomaton(String pattern, StringBuilder sb)
     {
         /* Oddities with RegExp by Automaton:
@@ -125,26 +136,26 @@ public class RegexHelper
             case 't':
                 d = '\t';
                 break;
-
+                
             // "Well-known" character classes
             // (let's hope simple inclusion works, like with JDK Regexps)
             case 'd':
-                _appendCharClass(sb, d, hadBracket, bracketLevels, "0-9");
+                _appendCharClass(sb, d, hadBracket, bracketLevels, CHAR_CLASS_AUTOMATON_d);
                 continue main_loop;
             case 'D':
-                _appendCharClass(sb, d, hadBracket, bracketLevels, "^0-9");
+                _appendCharClass(sb, d, hadBracket, bracketLevels, "^"+CHAR_CLASS_AUTOMATON_d);
                 continue main_loop;
             case 's':
-                _appendCharClass(sb, d, hadBracket, bracketLevels, " \b\f\n\r\t");
+                _appendCharClass(sb, d, hadBracket, bracketLevels, CHAR_CLASS_AUTOMATON_s);
                 continue main_loop;
             case 'S':
-                _appendCharClass(sb, d, hadBracket, bracketLevels, "^ \b\f\n\r\t");
+                _appendCharClass(sb, d, hadBracket, bracketLevels, "^"+CHAR_CLASS_AUTOMATON_s);
                 continue main_loop;
             case 'w':
-                _appendCharClass(sb, d, hadBracket, bracketLevels, "a-zA-Z_0-9");
+                _appendCharClass(sb, d, hadBracket, bracketLevels, CHAR_CLASS_AUTOMATON_w);
                 continue main_loop;
             case 'W':
-                _appendCharClass(sb, d, hadBracket, bracketLevels, "^a-zA-Z_0-9");
+                _appendCharClass(sb, d, hadBracket, bracketLevels, "^"+CHAR_CLASS_AUTOMATON_w);
                 continue main_loop;
                 
             default: // unknown; only ok if NOT alphanumeric
@@ -178,6 +189,13 @@ public class RegexHelper
         }
         sb.append(chars);
     }
+
+    // for tests
+    protected static String massageRegexpForJDK(String pattern) {
+        StringBuilder sb = new StringBuilder();
+        massageRegexpForJDK(pattern, sb);
+        return sb.toString();
+    }
     
     public static void massageRegexpForJDK(String pattern, StringBuilder sb)
     {
@@ -185,8 +203,8 @@ public class RegexHelper
         // need to copy backslash escapes verbatim
         final int end = pattern.length();
 
-        for (int i = 0; i < end; ++i) {
-            char c = pattern.charAt(i);
+        for (int i = 0; i < end; ) {
+            char c = pattern.charAt(i++);
 
             switch (c) {
             case '\\':

@@ -40,10 +40,10 @@ public class FullExtractionTest extends TestBase
     public void testIntermediate() throws Exception
     {
         final String DEF =
-"pattern %ws [ \\t]+\n"+
+"pattern %ws \\s+\n"+
 "pattern %word [a-zA-Z]+\n"+
-"pattern %phrase [^ \\t]+\n"+
-"pattern %num [0-9]+\n"+
+"pattern %phrase \\S+\n"+
+"pattern %num \\d+\n"+
 "pattern %ts %phrase\n"+
 "pattern %ip %phrase\n"+
 "extract interm {  \n"+
@@ -65,12 +65,10 @@ public class FullExtractionTest extends TestBase
     {
         final String DEF =
 "### First, let's define basic patterns using 'patterns' (regexps)\n"+
-"# inline whitespace is understood, but for more explicit usage may also define:\n"+
-"pattern %ws [ \\t]+\n"+
 "# 'phrase' means non-space-sequence of characters; 'word' letters; 'num' digits\n"+
 "pattern %word [a-zA-Z]+\n"+
-"pattern %phrase [^ \\t]+\n"+
-"pattern %num [0-9]+\n"+
+"pattern %phrase \\S+\n"+
+"pattern %num \\d+\n"+
 "# more semantic macros, loosely defined\n"+
 "pattern %ts %phrase\n"+
 "pattern %ip %phrase\n"+
