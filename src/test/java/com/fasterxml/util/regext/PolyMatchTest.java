@@ -75,7 +75,7 @@ public class PolyMatchTest extends TestBase
         String INPUT = "<86>2015-05-12T20:57:53.302858+00:00 10.1.11.141 RealSource: \"10.10.5.3\""
                 +" Environment: \"TEST\""
                 +" UUID: \"NONE\""
-                +" RawMsg: <123>something 1324 more-or-less google.com sshd[137]"
+                +" RawMsg: <123>something 1324 more-or-less/none google.com sshd[137]"
                 ;
         
         DefinitionReader defR = DefinitionReader.reader(DEF);
