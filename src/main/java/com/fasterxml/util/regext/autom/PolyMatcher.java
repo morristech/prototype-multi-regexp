@@ -12,6 +12,15 @@ public class PolyMatcher
 {
     private final int[] NO_MATCH = {};
     private final Automata automata;
+    
+    /**
+     * Most of the extra flags are not applicable, partly since they
+     * use syntax that is different "standard" regexp, and as such would
+     * otherwise need to be translated. Extra operators do not seem particularly
+     * useful either, so removing them should make things bit safer and
+     * possibly more efficient.
+     */
+    private final static int FLAGS = RegExp.NONE;
 
     protected PolyMatcher(Automata a) {
         automata = a;
@@ -29,7 +38,7 @@ public class PolyMatcher
         final List<Automaton> automata = new ArrayList<>();
         for (String ptn: patterns) {
             try {
-                Automaton automaton = new RegExp(ptn).toAutomaton();
+                Automaton automaton = new RegExp(ptn, FLAGS).toAutomaton();
                 automaton.minimize();
                 automata.add(automaton);
             } catch (IllegalArgumentException e) {

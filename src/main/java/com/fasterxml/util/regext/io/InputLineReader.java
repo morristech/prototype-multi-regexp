@@ -75,7 +75,8 @@ public class InputLineReader
         InputLine combo = InputLine.create(_sourceRef, start, line);
 
         while (true) {
-            line = _nextContentLine();
+            // NOTE: with continuations we are NOT to skip empty lines or comments!
+            line = _nextContinuationLine();
             // Illegal to end with continuation
             if (line == null)  {
             	reportError("Unexpected end-of-input when expecting line continuation'");
@@ -112,6 +113,22 @@ public class InputLineReader
                 return line;
             }
         }
+    }
+
+    protected String _nextContinuationLine() throws IOException
+    {
+        if (_closed) {
+            return null;
+        }
+        String line = _reader.readLine();
+        if (line == null) {
+            if (_autoClose) {
+                close();
+            }
+            return line;
+        }
+        ++_row;
+        return line;
     }
 
     protected boolean _isEmptyOrComment(String line) {

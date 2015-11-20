@@ -40,7 +40,7 @@ public class PolyMatchTest extends TestBase
 "pattern %num [0-9]+\n"+
 "pattern %ts %phrase\n"+
 "extract interm {  \n"+
-"  template <%num>$eventTimeStamp(%ts)\n"+
+"  template <%num> (foo)[bar] $eventTimeStamp(%ts) end:'$timestamp(%ts)' THE END.\n"+
 "}\n"+
     "";
 
@@ -48,9 +48,42 @@ public class PolyMatchTest extends TestBase
         ExtractionDefinition def = defR.read();
         PolyMatcher matcher = def.getMatcher();
 
-        int[] matches = matcher.match("<123>12:30:58");
+        int[] matches = matcher.match("<123> (foo)[bar] 12:30:58 end:'15:07:00Z' THE END.");
         assertEquals(1, matches.length);
         assertEquals(0, matches[0]);
+    }
 
+    public void testComplex() throws Exception
+    {
+        final String DEF =
+"pattern %word [a-zA-Z]+\n"+
+"pattern %phrase [^ \\t]+\n"+
+"pattern %num ([0-9]+)\n"+
+"pattern %ts %phrase\n"+
+"pattern %ip %phrase\n"+
+"pattern %maybeUUID %phrase\n"+
+"pattern %hostname %phrase\n"+
+"template @base <%num>$eventTimeStamp(%ts) $logAgent(%ip) RealSource: \"$logSrcIp(%ip)\"\\\n"+
+" Environment: \"$environment(%phrase)\"\\\n"+
+" UUID: \"$uuid(%maybeUUID)\"\\\n"+
+" RawMsg: <%num>$rawMsgTS(%word %num %phrase) $logSrcHostname(%hostname) $appname(%word)[$appPID(%num)]\n"+
+"\n"+
+"extract baseMatch {\n"+
+"  template @base\n"+
+"}\n";
+
+        String INPUT = "<86>2015-05-12T20:57:53.302858+00:00 10.1.11.141 RealSource: \"10.10.5.3\""
+                +" Environment: \"TEST\""
+                +" UUID: \"NONE\""
+                +" RawMsg: <123>something 1324 more-or-less google.com sshd[137]"
+                ;
+        
+        DefinitionReader defR = DefinitionReader.reader(DEF);
+        ExtractionDefinition def = defR.read();
+        PolyMatcher matcher = def.getMatcher();
+
+        int[] matches = matcher.match(INPUT);
+        assertEquals(1, matches.length);
+        assertEquals(0, matches[0]);
     }
 }

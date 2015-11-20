@@ -43,6 +43,8 @@ public class RegexHelper
             case '>':
                 // as well as with quoted entries (how about single quotes?)
             case '"':
+                // and some other operators
+            case '&':
                 sb.append('\\');
                 sb.append(c);
                 break;

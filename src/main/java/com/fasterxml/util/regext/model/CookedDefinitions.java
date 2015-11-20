@@ -313,8 +313,8 @@ public class CookedDefinitions
 
     private void _massagePatternForAutomaton(String pattern, StringBuilder sb)
     {
-        // Anything to really qutoe for Automaton? Could perhaps translate some
-        // named escapes, but otherwise...
+        // Anything to really quote for Automaton? Could perhaps translate some
+        // named escapes?
         sb.append(pattern);
     }
 

@@ -65,12 +65,10 @@ public class FullExtractionTest extends TestBase
     
     public void testFull() throws Exception
     {
-        final String DEF0 =
+        final String DEF =
 "### First, let's define basic patterns using 'patterns' (regexps)\n"+
-"\n"+
 "# inline whitespace is understood, but for more explicit usage may also define:\n"+
 "pattern %ws [ \\t]+\n"+
-"pattern %optws [ \\t]*\n"+
 "# 'phrase' means non-space-sequence of characters; 'word' letters; 'num' digits\n"+
 "pattern %word [a-zA-Z]+\n"+
 "pattern %phrase [^ \\t]+\n"+
@@ -80,14 +78,13 @@ public class FullExtractionTest extends TestBase
 "pattern %ip %phrase\n"+
 "pattern %maybeUUID %phrase\n"+
 "pattern %hostname %phrase\n"+
-"pattern %any (.*)\n"+
 "\n"+
 "# then possible 'templates', building blocks that consist of named patterns, literal text and possible embedded\n"+
 "# 'anonymous' patterns (enclosed in %{....} and neither parsed (to substituted) nor escaped (like literal text))\n"+
 "\n"+
-"template @base <%num>$eventTimeStamp(%ts) $logAgent(%ip) RealSource: '$logSrcIp(%ip)' Environment: '$environment(%phrase)' \\\n"+
-"UUID: '$uuid(maybeUUID)'\\n"+
-" RawMsg: <%num>$rawMsgTS(%word %num %phrase) $logSrcHostname(%hostname) $appname(%word)[$appPID(%num)]:\n"+
+"template @base <%num>$eventTimeStamp(%ts) $logAgent(%ip) RealSource: '$logSrcIp(%ip)'\\\n"+
+" Environment: '$environment(%phrase)' UUID: '$uuid(%maybeUUID)'\\\n"+
+" RawMsg: <%num>$rawMsgTS(%word %num %phrase) $logSrcHostname(%hostname) $appname(%word)[$appPID(%num)]\n"+
 "\n"+
 "# and then higher-level composition\n"+
 "\n"+
@@ -96,32 +93,38 @@ public class FullExtractionTest extends TestBase
 "# RawMsg: <86>May 12 20:57:53 host-prodnet sshd[12973]: Accepted keyboard-interactive/pam for badguy.ru from 1.2.3.4 port 58216 ssh2\n"+
 "\n"+
 "extract sshdMatch {\n"+
-"  template @base ($authStatus(Accepted)) $sshAuthMethod(%phrase) for $user(%hostname) from $srcIP(%ip) port $srcPort(%num) $sshProtocol(%phrase)\n"+
+"  template @base: ($authStatus(Accepted)) $sshAuthMethod(%phrase) for $user(%hostname) from $srcIP(%ip) port $srcPort(%num) $sshProtocol(%phrase)\n"+
 "  append 'service':'ssh', 'logType':'security', 'serviceType':'authentication' \n"+
 "}\n"+
 "extract baseMatch {\n"+
 "  template @base\n"+
 "}\n"+
-
-""
-        ;
+"";
 
         // Minor simplification, used single-quotes for doubles above, change back
-        final String DEF = DEF0.replace('\'', '"');
-        
-        DefinitionReader defR = DefinitionReader.reader(DEF);
+        DefinitionReader defR = DefinitionReader.reader(DEF.replace('\'', '"'));
         ExtractionDefinition def = defR.read();
 
         // First things first, verify that @base matches
-        String INPUT = "<86>2015-05-12T20:57:53.302858+00:00 10.1.11.141 RealSource: '10.10.5.3' Environment: 'TEST' UUID: 'NO'"
-                .replace('\'', '"');
-        ExtractionResult result = def.match(INPUT);
+        String INPUT = "<86>2015-05-12T20:57:53.302858+00:00 10.1.11.141 RealSource:   '10.10.5.3'"
+                +" Environment: 'TEST' UUID: 'NO'"
+                +" RawMsg: <123>something 1324 more-or-less google.com sshd[137]";
+        
+        ExtractionResult result = def.match(INPUT.replace('\'', '"'));
         assertNotNull(result);
         
-        INPUT = "<86>2015-05-12T20:57:53.302858+00:00 10.1.11.141 RealSource:    '10.10.5.3' Environment: 'TEST' UUID: 'NO'"
-                +" RawMsg: <86>May 12 20:57:53 host-prodnet sshd[12973]: Accepted keyboard-interactive/pam for badguy.ru from 1.2.3.4 port 58216 ssh2"
-                .replace('\'', '"');
+        INPUT = "<86>2015-05-12T20:57:53.302858+00:00 10.1.11.141 RealSource:   '10.10.5.3'"
+                +" Environment: 'TEST' UUID: 'NO'"
+                +" RawMsg: <86>May 12 20:57:53 host-prodnet sshd[13058]"
+                +": Accepted keyboard-interactive/pam for badguy.ru from 1.2.3.4 port 58216 ssh2"
+                ;
+        result = def.match(INPUT.replace('\'', '"'));
+        assertNotNull(result);
+
         result = def.match(INPUT);
         assertNotNull(result);
+        assertEquals("sshdMatch", result.getId());
+        Map<String,Object> values = result.asMap(null);
+        assertEquals("badguy.ru", values.get("user"));
     }
 }
