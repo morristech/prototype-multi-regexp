@@ -11,7 +11,7 @@ public class PolyMatchTest extends TestBase
     public void testSimple() throws Exception
     {
         final String DEF =
-"pattern %word ([a-zA-Z]+)\n"+
+"pattern %word (\\w+)\n"+
 "template @base %word\n"+
 "extract rule1 {  \n"+
 "  template @base value=$value(%word) value2=$value2(%word)\n"+
@@ -36,8 +36,9 @@ public class PolyMatchTest extends TestBase
     public void testIntermediate() throws Exception
     {
         final String DEF =
-"pattern %phrase [^ \\t]+\n"+
-"pattern %num [0-9]+\n"+
+//"pattern %phrase [^ \\t]+\n"+
+"pattern %phrase \\S+\n"+
+"pattern %num \\d+\n"+
 "pattern %ts %phrase\n"+
 "extract interm {  \n"+
 "  template <%num> (foo)[bar] $eventTimeStamp(%ts) end:'$timestamp(%ts)' THE END.\n"+
@@ -57,7 +58,7 @@ public class PolyMatchTest extends TestBase
     {
         final String DEF =
 "pattern %word [a-zA-Z]+\n"+
-"pattern %phrase [^ \\t]+\n"+
+"pattern %phrase [^ \t]+\n"+
 "pattern %num ([0-9]+)\n"+
 "pattern %ts %phrase\n"+
 "pattern %ip %phrase\n"+
@@ -75,7 +76,7 @@ public class PolyMatchTest extends TestBase
         String INPUT = "<86>2015-05-12T20:57:53.302858+00:00 10.1.11.141 RealSource: \"10.10.5.3\""
                 +" Environment: \"TEST\""
                 +" UUID: \"NONE\""
-                +" RawMsg: <123>something 1324 more-or-less/none google.com sshd[137]"
+                +" RawMsg: <123>something 1324 keyboard-interactive/pam google.com sshd[137]"
                 ;
         
         DefinitionReader defR = DefinitionReader.reader(DEF);

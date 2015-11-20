@@ -81,7 +81,7 @@ public class ExtractionDefinition
         if (!allowFallbacks) {
             throw new ExtractionException(input,
                     String.format("Internal error: high-level match for extraction #%d (%s) failed to match generated regexp: %s",
-                            matchIndex, extr, extr.getRegexpDesc()));
+                            matchIndex, extr.getName(), extr.getRegexpDesc()));
         }
         for (int i = 1, end = matchIndexes.length; i < end; ++i) {
             extr = _extractions[matchIndex];

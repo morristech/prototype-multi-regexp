@@ -56,4 +56,156 @@ public class RegexHelper
         return sb.toString();
     }
 
+    public static void massageRegexpForAutomaton(String pattern, StringBuilder sb)
+    {
+        /* Oddities with RegExp by Automaton:
+         *
+         * - Backslash quote ONLY works for literal character
+         *    + no pre-defined ones for control chars (like linefeed with `\n`, tab etc)
+         *    + no pre-defined character classes like `\s` or `\w`
+         *
+         * So let's catch all "backslash-alphanum" cases, and either convert or
+         * throw exception
+         */
+        // Anything to really quote for Automaton? Could perhaps translate some
+        // named escapes?
+        if (pattern.indexOf('\\') < 0) {
+            sb.append(pattern);
+            return;
+        }
+        final int end = pattern.length();
+        // need to keep track of character classes, so...
+        int bracketLevels = 0;
+
+        main_loop:
+        for (int i = 0; i < end; ) {
+            char c = pattern.charAt(i++);
+
+            switch (c) {
+            case '[':
+                sb.append(c);
+                ++bracketLevels;
+                continue main_loop;
+            case ']':
+                sb.append(c);
+                --bracketLevels;
+                continue main_loop;
+            case '\\':
+                if (i < end) {
+                    break;
+                }
+                // could catch orphan backslash, but for now pass to parser as-is
+            default:
+                sb.append(c);
+                continue main_loop;
+            }
+
+            // If character class, need to know whether to enclose in brackets or not
+            boolean hadBracket = (bracketLevels > 0) && (pattern.charAt(i-2) == '[');
+            char d = pattern.charAt(i++);
+
+            switch (d) {
+            // First, well-known replacements
+            case '\\': // fine as-is
+                break;
+
+            // Simple control-chars
+            case 'b':
+                d = '\b';
+                break;
+            case 'f':
+                d = '\f';
+                break;
+            case 'n':
+                d = '\n';
+                break;
+            case 'r':
+                d = '\r';
+                break;
+            case 't':
+                d = '\t';
+                break;
+
+            // "Well-known" character classes
+            // (let's hope simple inclusion works, like with JDK Regexps)
+            case 'd':
+                _appendCharClass(sb, d, hadBracket, bracketLevels, "0-9");
+                continue main_loop;
+            case 'D':
+                _appendCharClass(sb, d, hadBracket, bracketLevels, "^0-9");
+                continue main_loop;
+            case 's':
+                _appendCharClass(sb, d, hadBracket, bracketLevels, " \b\f\n\r\t");
+                continue main_loop;
+            case 'S':
+                _appendCharClass(sb, d, hadBracket, bracketLevels, "^ \b\f\n\r\t");
+                continue main_loop;
+            case 'w':
+                _appendCharClass(sb, d, hadBracket, bracketLevels, "a-zA-Z_0-9");
+                continue main_loop;
+            case 'W':
+                _appendCharClass(sb, d, hadBracket, bracketLevels, "^a-zA-Z_0-9");
+                continue main_loop;
+                
+            default: // unknown; only ok if NOT alphanumeric
+                if (Character.isAlphabetic(d) || Character.isDigit(d)) {
+                    throw new IllegalArgumentException("Unrecognized backslash escape '\\"
+                            +d+"; can only escape backslash (\\\\),"
+                            +" use known control-codes (\\n, \\r, \\t),"
+                            +" escape non-alphanumeric (\\$, \\(, ...) or refer to"
+                            +" a 'well-known' character class (\\s, \\S, \\d, \\D, \\w, \\W)");
+                }
+            }
+            sb.append(d);
+            }
+    }
+
+    private static void _appendCharClass(StringBuilder sb, char charClass,
+            boolean hadBracket, int bracketNesting,
+            String chars) {
+        // First things first; if no nesting, surround with brackets
+        if (bracketNesting == 0) {
+            sb.append('[');
+            sb.append(chars);
+            sb.append(']');
+            return;
+        }
+        // second: if within nesting, will not append, but will have to
+        // fail if we try to use negation AND we did not just have bracket
+        if (chars.startsWith("^") && !hadBracket) {
+            throw new IllegalArgumentException("Can not use negated character class \\"
+                    +charClass+" within character class in position other than first (Automaton limitation)");
+        }
+        sb.append(chars);
+    }
+    
+    public static void massageRegexpForJDK(String pattern, StringBuilder sb)
+    {
+        // With "regular" regexps need to avoid capturing groups, and for that
+        // need to copy backslash escapes verbatim
+        final int end = pattern.length();
+
+        for (int i = 0; i < end; ++i) {
+            char c = pattern.charAt(i);
+
+            switch (c) {
+            case '\\':
+                sb.append(c);
+                // copy escaped, unless we are at end; end is probably an error condition
+                // but for now let's not care, should be caught by regexp parser if necessary
+                if (i < end) {
+                    sb.append(pattern.charAt(i++));
+                }
+                break;
+                
+            case '(':
+                // change to non-capturing
+                sb.append("(?:");
+                break;
+            default:
+                sb.append(c);
+            }
+        }
+    }
+    
 }

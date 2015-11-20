@@ -292,8 +292,14 @@ public class CookedDefinitions
                 regexpInput.append(q);
             } else if (part instanceof LiteralPattern) {
                 String ptext = part.getText();
-                _massagePatternForAutomaton(ptext, automatonInput);
-                _massagePatternForRegexp(ptext, regexpInput);
+                try {
+                    RegexHelper.massageRegexpForAutomaton(ptext, automatonInput);
+                    RegexHelper.massageRegexpForJDK(ptext, regexpInput);
+                } catch (Exception e) {
+                    part.getSource().reportError(part.getSourceOffset(),
+                            "Invalid pattern definition, problem (%s): %s",
+                            e.getClass().getName(), e.getMessage());
+                }
             } else if (part instanceof ExtractorExpression) {
                 ExtractorExpression extr = (ExtractorExpression) part;
                 extractorNames.add(extr.getName());
@@ -311,42 +317,6 @@ public class CookedDefinitions
         }
     }
 
-    private void _massagePatternForAutomaton(String pattern, StringBuilder sb)
-    {
-        // Anything to really quote for Automaton? Could perhaps translate some
-        // named escapes?
-        sb.append(pattern);
-    }
-
-    private void _massagePatternForRegexp(String pattern, StringBuilder sb)
-    {
-        // With "regular" regexps need to avoid capturing groups, and for that
-        // need to copy backslash escapes verbatim
-        final int end = pattern.length();
-
-        for (int i = 0; i < end; ++i) {
-            char c = pattern.charAt(i);
-
-            switch (c) {
-            case '\\':
-                sb.append(c);
-                // copy escaped, unless we are at end; end is probably an error condition
-                // but for now let's not care, should be caught by regexp parser if necessary
-                if (i < end) {
-                    sb.append(pattern.charAt(i++));
-                }
-                break;
-                
-            case '(':
-                // change to non-capturing
-                sb.append("(?:");
-                break;
-            default:
-                sb.append(c);
-            }
-        }
-    }
-    
     /*
     /**********************************************************************
     /* Helper methods

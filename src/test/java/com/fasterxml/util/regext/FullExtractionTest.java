@@ -117,9 +117,7 @@ public class FullExtractionTest extends TestBase
         INPUT = "<86>2015-05-12T20:57:53.302858+00:00 10.1.11.141 RealSource:   '10.10.5.3'"
                 +" Environment: 'TEST' UUID: 'NO'"
                 +" RawMsg: <123>something 1324 more-or-less google.com sshd[137]"
-// I'll be damned if I know why one fails, other passes:                
-//                +": Accepted keyboard-interactive/pam for badguy.ru from 1.2.3.4 port 58216 ssh2"
-                +": Accepted keyboard-inive/pam for badguy.ru from 1.2.3.4 port 58216 ssh2"
+                +": Accepted keyboard-interactive/pam for badguy.ru from 1.2.3.4 port 58216 ssh2"
                 ;
         result = def.match(INPUT.replace('\'', '"'));
         assertNotNull(result);
