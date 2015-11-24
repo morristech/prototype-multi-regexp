@@ -22,11 +22,11 @@ public class UncookedDefTest extends TestBase
 "pattern %optws \\s*\n"+
 "pattern %'phrase' \\S+\n"+
 "pattern %\"maybeUUID\" %'phrase'\n"+
-"# in addition to Java id chars, hyphen is also valid:\n"+
-"pattern %host-name %\"phrase\"\n"+
+"# hyphen not valid, must be quoted:\n"+
+"pattern %'host-name' %\"phrase\"\n"+
 "\n"+
 "template @simple Prefix:\n"+
-"template @'base' %phrase%optws(sic!) @simple %host-name\n"+
+"template @'base' %phrase%optws(sic!) @simple %'host-name'\n"+
 "\n"+
 "extract FooMessage {  \n"+
 "  template @base ($authStatus(Accepted))\n"+

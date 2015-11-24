@@ -42,10 +42,34 @@ public class PolyMatcher
                 automaton.minimize();
                 automata.add(automaton);
             } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Invalid regexp, "+e.getMessage()+", source: "+ptn);
+                throw new IllegalArgumentException("Invalid regexp, "+e.getMessage()+", source: "+_printablePattern(ptn));
             }
         }
         return Automata.construct(automata);
+    }
+
+    private static String _printablePattern(String src)
+    {
+        final int end = src.length();
+        StringBuilder sb = new StringBuilder(10 + end);
+        for (int i = 0; i < end; ++i) {
+            char c = src.charAt(i);
+            if (c < 0x0020) {
+                switch (c) {
+                case '\t':
+                    sb.append("\\t");
+                    continue;
+                case '\r':
+                    sb.append("\\r");
+                    continue;
+                case '\n':
+                    sb.append("\\n");
+                    continue;
+                }
+            }
+            sb.append(c);
+        }
+        return sb.toString();
     }
     
     /**

@@ -180,10 +180,12 @@ public class TokenHelper
     }
 
     private static boolean _isNonLeadingNameChar(char c) {
-        // allow hyphens as extension to regular identifier, but nothing else (no dots f.ex)
+        // 24-Nov-2015, as per [issue#2], do NOT include hyphen as valid
+        /*
         if (c == '-') {
             return true;
         }
+        */
         return Character.isJavaIdentifierPart(c);
     }
 
