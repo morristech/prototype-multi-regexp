@@ -167,8 +167,9 @@ public class RegexHelper
                             +" a 'well-known' character class (\\s, \\S, \\d, \\D, \\w, \\W)");
                 }
             }
+            sb.append(c);
             sb.append(d);
-            }
+        }
     }
 
     private static void _appendCharClass(StringBuilder sb, char charClass,

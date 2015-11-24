@@ -31,6 +31,12 @@ loosely structured input like loglines
   <properties>
     <javac.src.version>1.7</javac.src.version>
     <javac.target.version>1.7</javac.target.version>
+    <!-- 24-Nov-2015, tatu: for a bit thought I'd need to manually specify exports;
+probably won't but leaving here just in case
+    -->
+    <osgi.export>com.fasterxml.util.*;version=${project.version}
+    </osgi.export>
+
   </properties>
 
   <!-- Licensing -->

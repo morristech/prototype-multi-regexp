@@ -56,16 +56,26 @@ public class PolyMatcher
             char c = src.charAt(i);
             if (c < 0x0020) {
                 switch (c) {
-                case '\t':
-                    sb.append("\\t");
-                    continue;
-                case '\r':
-                    sb.append("\\r");
-                    continue;
+                case '\b':
+                    sb.append("\\b");
+                    break;
+                case '\f':
+                    sb.append("\\f");
+                    break;
                 case '\n':
                     sb.append("\\n");
-                    continue;
+                    break;
+                case '\r':
+                    sb.append("\\r");
+                    break;
+                case '\t':
+                    sb.append("\\t");
+                    break;
+                default:
+                    sb.append(String.format("\\U%04x", (int) c));
+                    break;
                 }
+                continue;
             }
             sb.append(c);
         }

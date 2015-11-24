@@ -3,7 +3,6 @@ package com.fasterxml.util.regext.autom;
 import java.util.*;
 
 import dk.brics.automaton.Automaton;
-import dk.brics.automaton.DkBricsAutomatonAccess;
 import dk.brics.automaton.State;
 
 /**
