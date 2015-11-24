@@ -54,6 +54,33 @@ public class PolyMatchTest extends TestBase
         assertEquals(0, matches[0]);
     }
 
+    public void testQuoted() throws Exception
+    {
+        final String DEF =
+"pattern %word (\\w+)\n"+
+"pattern %quoted \\\"[^\\\"]*\\\"\n"+
+"extract quoted {  \n"+
+"  template header value=$value(%quoted)\n"+
+"}\n"+
+"extract unquoted {  \n"+
+"  template header value=$value(%word)\n"+
+"}\n"+
+                    "";
+        DefinitionReader defR = DefinitionReader.reader(DEF);
+        RegExtractor def = defR.read();
+        PolyMatcher matcher = def.getMatcher();
+
+        int[] matches;
+
+        matches = matcher.match("header value=stuff");
+        assertEquals(1, matches.length);
+        assertEquals(1, matches[0]);
+
+        matches = matcher.match("header value=\"stuff\"");
+        assertEquals(1, matches.length);
+        assertEquals(0, matches[0]);
+    }
+
     public void testComplex() throws Exception
     {
         final String DEF =
