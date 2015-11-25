@@ -4,7 +4,7 @@ Project: RegExtractor
 === Releases ===
 ------------------------------------------------------------------------
 
-0.5.1
+0.5.1 (24-Nov-2015)
 
 #2: Remove hyphen from valid name char set
 - Fixed accidental unescaping from Automaton input scrubbing
