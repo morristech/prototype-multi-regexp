@@ -1,0 +1,45 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion> 
+  <parent>
+    <groupId>com.fasterxml.util</groupId>
+    <artifactId>reg-extractor-parent</artifactId>
+    <version>0.6.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>reg-extractor-core</artifactId>
+  <name>RegExtractor-core</name>
+  <packaging>bundle</packaging>
+  <description>Core package for building efficient DFA-based extractor to use for extracting data from
+loosely structured input like loglines; handles parsing of input definition and building of the extractor.
+  </description>
+
+  <properties>
+    <!-- 24-Nov-2015, tatu: for a bit thought I'd need to manually specify exports;
+probably won't but leaving here just in case
+    -->
+    <osgi.export>com.fasterxml.util.*;version=${project.version}
+    </osgi.export>
+
+  </properties>
+
+  <dependencies>
+    <!-- Automaton for efficient multi-regexp matching -->
+    <dependency>
+      <groupId>dk.brics.automaton</groupId>
+      <artifactId>automaton</artifactId>
+      <version>1.11-8</version>
+    </dependency>
+
+    <!-- Jackson-jr for appending properties
+      -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.jr</groupId>
+      <artifactId>jackson-jr-objects</artifactId>
+      <version>2.6.3</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+    </plugins>
+  </build>
+</project>
