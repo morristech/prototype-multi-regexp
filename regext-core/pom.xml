@@ -33,13 +33,46 @@ probably won't but leaving here just in case
       -->
     <dependency>
       <groupId>com.fasterxml.jackson.jr</groupId>
-      <artifactId>jackson-jr-objects</artifactId>
+      <artifactId>jackson-jr-all</artifactId>
       <version>2.6.3</version>
     </dependency>
   </dependencies>
 
   <build>
+    <!-- As per [RegExtractor#4], shade in deps -->
     <plugins>
+       <plugin>
+        <!--  We will shade ASM, to simplify deployment, avoid version conflicts -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.4.2</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <artifactSet>
+                <includes>
+                  <include>dk.brics.automaton:automaton</include>
+                  <include>com.fasterxml.jackson.jr:jackson-jr-all</include>
+                </includes>
+              </artifactSet>
+              <relocations>
+                <relocation>
+                  <pattern>dk.brics.automaton</pattern>
+                  <shadedPattern>com.fasterxml.util.regext.shaded.automaton</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.fasterxml.jackson.jr</pattern>
+                  <shadedPattern>com.fasterxml.util.regext.shaded.jacksonjr</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 </project>
