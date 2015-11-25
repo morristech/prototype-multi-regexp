@@ -8,7 +8,7 @@
   <groupId>com.fasterxml.util</groupId>
   <artifactId>reg-extractor</artifactId>
   <name>RegExtractor</name>
-  <version>0.5.1</version>
+  <version>0.5.2-SNAPSHOT</version>
   <packaging>bundle</packaging>
   <description>Package for building efficient DFA-based extractor to use for extracting data from
 loosely structured input like loglines
@@ -18,7 +18,7 @@ loosely structured input like loglines
     <connection>scm:git:git@github.com:cowtowncoder/RegExtractor.git</connection>
     <developerConnection>scm:git:git@github.com:cowtowncoder/RegExtractor.git</developerConnection>
     <url>https://github.com/cowtowncoder/RegExtractor</url>
-    <tag>reg-extractor-0.5.1</tag>
+    <tag>HEAD</tag>
   </scm>
   <developers>
         <developer>
