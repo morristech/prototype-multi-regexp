@@ -254,16 +254,17 @@ public class CookedDefinitions
 
             // Start with regexp itself
             String[] extractorNames = extractorNameList.toArray(new String[extractorNameList.size()]);
+            final String regexpSource = regexpInput.toString();
             Pattern regexp = null;
             try {
-                regexp = Pattern.compile(regexpInput.toString());
+                regexp = Pattern.compile(regexpSource);
             } catch (Exception e) {
                 rawTemplate.reportError("Invalid regular expression segment: %s", e.getMessage());
             }
             
             int index = _extractions.size();
             _extractions.add(CookedExtraction.construct(index, rawExtr, template,
-                    regexp, extractorNames));
+                    regexp, regexpSource, extractorNames));
         }
         
         // With that, can try constructing multi-matcher
