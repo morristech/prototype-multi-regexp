@@ -9,7 +9,11 @@ for actual value extraction.
 
 ## Basic operation
 
-(to be completed)
+To use RegExtractor, you need three things:
+
+1. This library: comes in a single jar which includes shaded dependencies (so-called "uber-jar")
+2. Extraction definition: often a `File`, either stand-alone or a resource from within bigger jar; or possibly read from external storage like Amazon S3
+3. Input, in form of `java.lang.String`s, often coming from a line-oriented input source like (a set of) log file(s).
 
 ## Basic usage
 
@@ -27,7 +31,17 @@ Map<String,Object> properties = asMap();
 
 ## Extractor input definition
 
-(to be completed)
+Extractor input definition is a line-oriented text document, consisting of 3 kinds of declarations:
+
+1. Pattern declarations: define low-level building blocks that consists of snippets of Regular Expressions and/or references to other patterns
+2. Template declarations: define intermediate building blocks that consist of references to patterns, literal text segments, references to named templates, inlined patterns and extractors
+3. Extraction declarations: named matching rules that associate a named template with output, possible augmented by additional properties
+
+In addition to these declarations, individual `extractors` are declared as part of templates of extractions.
+
+### Sample Extractor Input Definition
+
+TO BE WRITTEN
 
 ## Regexp supported
 
