@@ -17,8 +17,10 @@ To use RegExtractor, you need three things:
 
 ## Basic usage
 
+Assuming you have file `extractions.xtr` which contains extraction definition (2), and wanted to extract values out of it, you could use:
+
 ```java
-DefinitionReader r = DefinitionReader.reader(new File("extractions.conf"));
+DefinitionReader r = DefinitionReader.reader(new File("extractions.xtr"));
 RegExtractor extractor = r.read();
 final String TEST_INPUT = "prefix: time=12546778 verb=PUT";
 ExtractionResult result = extractor.extract(TEST_INPUT);
@@ -27,6 +29,28 @@ if (result == null) { // no match, handle
 }
 Map<String,Object> properties = asMap();
 // and then use extracted property values
+```
+
+and a sample extraction definition could be something like:
+
+```
+pattern %num \d+
+pattern %word \w+
+template @extractTime time=$time(%num)
+template @extractVerb verb=$verb(%word)
+extract SimpleEntry {
+   template prefix: @extractTime @extractVerb
+}
+```
+
+and as a result you would get Map like:
+
+```json
+{
+  "time" : "12546778",
+  "verb" : "PUT"
+}
+
 ```
 
 ## Extractor input definition
