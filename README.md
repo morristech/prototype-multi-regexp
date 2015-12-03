@@ -106,7 +106,7 @@ which would be one way to define a multi-matcher. Things to note include:
 It is also worth noting that we did not use templates here; but we could simplify things a bit by doing something like:
 
 ```
-pattern @timeAndPath $timeTakenInMsec(%num)ms $path(%phrase)
+template @timeAndPath $timeTakenInMsec(%num)ms $path(%phrase)
 # ...
 extract OtherRequest {
    template [$timestamp(%num)]: $verb(%word) @timeAndPath
