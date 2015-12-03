@@ -155,3 +155,5 @@ Of all the features, explicitly not supported features include:
 * Named matching groups (instead, extractors are used to same effect)
 * Special constructors (matching that starts with `(?`
     * NOTE: internally non-matching group markers are used to only capture groups define via extractors, as optimization)
+
+Some of these features may be potentially supportable, if [Automaton](http://www.brics.dk/automaton/) package adds such support; or, in case of named character classes, by adding conversion within RegExtractor itself. But some features (like back-references) are unlikely to be supportable.
