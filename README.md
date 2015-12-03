@@ -31,7 +31,7 @@ Map<String,Object> properties = asMap();
 // and then use extracted property values
 ```
 
-and a sample extraction definition could be something like:
+and a sample extraction definition could be something like (note that this is not the simplest way to do it -- it just illustrates concepts):
 
 ```
 pattern %num \d+
@@ -65,7 +65,56 @@ In addition to these declarations, individual `extractors` are declared as part 
 
 ### Sample Extractor Input Definition
 
-TO BE WRITTEN
+Let's try another example, this time for input of form:
+
+```
+102456879: GET 123ms 200 /rest-service/v1/endpoint?foo=bar
+```
+
+and we could use definition like:
+
+```
+pattern %num \d+
+pattern %word \w+
+pattern %phrase \S+
+
+extract PutRequest {
+   # It's ok to: (a) extract constant value; (b) concatenate physical lines with backslash
+   template [$timestamp(%num)]: $verb(PUT) $timeTakenInMsec(%num)ms\
+ $path(%phrase)
+   append { "marker" : "EXTRACTED" }
+}
+extract GetRequest {
+   template [$timestamp(%num)]: $verb(GET) $timeTakenInMsec(%num)ms\
+ $path(%phrase)
+   append { "marker" : "EXTRACTED" }
+}
+extract OtherRequest {
+   template [$timestamp(%num)]: $verb(%word) $timeTakenInMsec(%num)ms\
+ $path(%phrase)
+   append { "marker" : "EXTRACTED" }
+}
+```
+
+which would be one way to define a multi-matcher. Things to note include:
+
+* Multiple physical lines may be concatenated into a single logical line by ending the physical line with backslash ("\")
+* Comments are allowed; may have optional leading white-space but the first character has to be '#'
+* Order of declarations matters: first match will be taken; in this case this means that "OtherRequest" match needs to come after both "GetRequest" and "PutRequest"
+* You can append arbitrary key/value pairs by using "append" property for extraction
+
+It is also worth noting that we did not use templates here; but we could simplify things a bit by doing something like:
+
+```
+pattern @timeAndPath $timeTakenInMsec(%num)ms $path(%phrase)
+# ...
+extract OtherRequest {
+   template [$timestamp(%num)]: $verb(%word) @timeAndPath
+   append { "marker" : "EXTRACTED" }
+}
+```
+
+that is, by creating reusable templates to reduce amount of duplication.
 
 ## Regexp supported
 
@@ -90,8 +139,4 @@ Basic `Automaton` supports
 
 but none of the extension features are enabled, to make it more likely that the same input
 patterns can be used with both `Automaton` and the regexp-based extractors.
-
-
-
-
 
