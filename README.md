@@ -116,12 +116,14 @@ extract OtherRequest {
 
 that is, by creating reusable templates to reduce amount of duplication.
 
-## Regexp supported
+## Regular Expressions supported
 
 Expressions supported for named and inline patterns can be thought of either as a subset of
 the full `java.util.regexp.Pattern`, or as a superset of what [Automaton](http://www.brics.dk/automaton/)
 `RegExp` implementation supports
 (see [Automaton RegExp Javadocs](http://www.brics.dk/automaton/doc/index.html?dk/brics/automaton/RegExp.html)).
+
+### Additions to Automaton base
 
 Additions above and beyond `Automaton` `RegExp` are:
 
@@ -135,8 +137,21 @@ Basic `Automaton` supports
 * Grouping (`(....)`)
 * Literal escaping with `\` (that is, character immediately following is used as-is)
     * NOTE: due to extension here, literal quoting is ONLY used for-alphanumeric characters!
-* Concatentation, union (`|`)
+* Concatenation, union (`|`)
 
 but none of the extension features are enabled, to make it more likely that the same input
 patterns can be used with both `Automaton` and the regexp-based extractors.
 
+### Features missing from `java.util.regex`
+
+Of all the features, explicitly not supported features include:
+
+* "Advanced" character class features like:
+    * Advanced combinations of character classes (subtraction, intersection)
+    * POSIX, java.lang.Character etc classes (anything of form `\p{...}`)
+* Boundary matchers (except for implicit `^` and `$`)
+* Reluctant or Possessive quantifiers (all matching is greedy by default)
+* Back-references
+* Named matching groups (instead, extractors are used to same effect)
+* Special constructors (matching that starts with `(?`
+    * NOTE: internally non-matching group markers are used to only capture groups define via extractors, as optimization)
