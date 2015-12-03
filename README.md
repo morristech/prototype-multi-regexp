@@ -15,6 +15,16 @@ To use RegExtractor, you need three things:
 2. Extraction definition: often a `File`, either stand-alone or a resource from within bigger jar; or possibly read from external storage like Amazon S3
 3. Input, in form of `java.lang.String`s, often coming from a line-oriented input source like (a set of) log file(s).
 
+### Extractor input definition
+
+Extractor input definition is a line-oriented text document, consisting of 3 kinds of declarations:
+
+1. Pattern declarations, which define low-level building blocks that consists of snippets of Regular Expressions and/or references to other patterns
+2. Template declarations, which define intermediate building blocks that consist of references to patterns, literal text segments, references to named templates, inlined patterns and extractors
+3. Extraction declarations, named matching rules that associate a named template with output, possible augmented by additional properties
+
+In addition to these declarations, individual "extractors" are declared as part of templates of extractions.
+
 ## Basic usage
 
 Assuming you have file `extractions.xtr` which contains extraction definition (2), and wanted to extract values out of it, you could use:
@@ -31,7 +41,7 @@ Map<String,Object> properties = asMap();
 // and then use extracted property values
 ```
 
-and a sample extraction definition could be something like (note that this is not the simplest way to do it -- it just illustrates concepts):
+and a sample extraction definition could be something like (note that this is not the only, or even the simplest, way to define it):
 
 ```
 pattern %num \d+
@@ -52,16 +62,6 @@ and as a result you would get Map like:
 }
 
 ```
-
-## Extractor input definition
-
-Extractor input definition is a line-oriented text document, consisting of 3 kinds of declarations:
-
-1. Pattern declarations: define low-level building blocks that consists of snippets of Regular Expressions and/or references to other patterns
-2. Template declarations: define intermediate building blocks that consist of references to patterns, literal text segments, references to named templates, inlined patterns and extractors
-3. Extraction declarations: named matching rules that associate a named template with output, possible augmented by additional properties
-
-In addition to these declarations, individual `extractors` are declared as part of templates of extractions.
 
 ### Sample Extractor Input Definition
 
