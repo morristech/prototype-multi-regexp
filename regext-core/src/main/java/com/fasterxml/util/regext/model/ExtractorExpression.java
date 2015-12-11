@@ -16,11 +16,24 @@ public class ExtractorExpression
 {
     private List<DefPiece> _parts;
 
+    /**
+     * For "variable" extractors, logical position of the parameter that will
+     * specify actual name; 1-based
+     */
+    private final int _variablePos;
+    
     public ExtractorExpression(InputLine src, int offset, String lit) {
         super(src, offset, lit);
         _parts = new ArrayList<>();
+        _variablePos = -1;
     }
 
+    public ExtractorExpression(InputLine src, int offset, int variablePos) {
+        super(src, offset, String.valueOf(variablePos));
+        _parts = new ArrayList<>();
+        _variablePos = variablePos;
+    }
+    
     public ExtractorExpression empty() {
         return new ExtractorExpression(_source, _sourceOffset, _text);
     }
@@ -51,12 +64,24 @@ public class ExtractorExpression
     }
 
     @Override
+    public void appendTemplateVariable(int varPos, int offset) {
+        _parts.add(new TemplateVariable(_source, offset, varPos));
+    }
+
+    @Override
     public ExtractorExpression appendExtractor(String name, int offset) {
         ExtractorExpression extr = new ExtractorExpression(_source, offset, name);
         _parts.add(extr);
         return extr;
     }
 
+    @Override
+    public ExtractorExpression appendVariableExtractor(int varPos, int offset) {
+        ExtractorExpression extr = new ExtractorExpression(_source, offset, varPos);
+        _parts.add(extr);
+        return extr;
+    }
+    
     // Also DefPieceAppendable during resolution
     @Override
     public void append(DefPiece part) {

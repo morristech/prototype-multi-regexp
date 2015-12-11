@@ -77,6 +77,7 @@ public class DefinitionReader
     /* Test support
     /**********************************************************************
      */
+
     RegExtractor resolveAll() throws DefinitionParseException {
         resolvePatterns();
         resolveTemplates();
@@ -143,7 +144,7 @@ public class DefinitionReader
     /* Per-declaration-type parsing
     /**********************************************************************
      */
-    
+
     private void readPatternDefinition(InputLine line, int offset) throws DefinitionParseException
     {
         final String contents = line.getContents();
@@ -192,7 +193,7 @@ public class DefinitionReader
                 ++ix;
                 continue;
             }
-            StringAndOffset ref = TokenHelper.parseName("pattern", line, contents, ix);
+            StringAndOffset ref = TokenHelper.parseName("pattern", line, contents, ix, false);
             // Re-calc where we continue from etc
             String refName = ref.match;
 
@@ -210,33 +211,51 @@ public class DefinitionReader
         }
     }
 
-    private void readTemplateDefinition(InputLine line, int offset) throws DefinitionParseException
+    private void readTemplateDefinition(InputLine line, int startOffset) throws DefinitionParseException
     {
         final String contents = line.getContents();
-        int ix = TokenHelper.findTypeMarker('@', contents, offset);
+        int ix = TokenHelper.findTypeMarker('@', contents, startOffset);
         if (ix < 0) {
-            line.reportError(offset, "Template name must be prefixed with '@'");
+            line.reportError(startOffset, "Template name must be prefixed with '@'");
         }
-        offset = ix+1;
-        StringAndOffset p = TokenHelper.parseNameAndSkipSpace("template", line, contents, offset);
+        ix += 1;
+        StringAndOffset p = TokenHelper.parseName("template", line, contents, ix, false);
         String name = p.match;
 
         // First, verify this is not dup
         UncookedDefinition unp = new UncookedDefinition(line, name);
         UncookedDefinition old = _uncooked.addTemplate(name, unp);
         if (old != null) {
-            line.reportError(offset, "Duplicate template definition for name '%s'", name);
+            line.reportError(ix, "Duplicate template definition for name '%s'", name);
         }
-        _readTemplateContents(line, p.restOffset, unp, -1,
-                "template '"+name+"' definition");
+        ix = p.restOffset;
+
+        // Then see if this is parameterized template (with parameter/argument, placeholders)
+        int ix2 = TokenHelper.skipEmptyParens(contents, ix);
+        VariableCollector vars;
+        if (ix2 > ix) {
+            ix = ix2;
+            vars = new VariableCollector();
+        } else {
+            vars = null;
+        }
+        ix2 = TokenHelper.skipSpace(contents, ix);
+        if (ix == ix2) {
+            line.reportError(ix, "Missing space character after template name '%s'", name);
+        }
+        ix = ix2;
+        _readTemplateContents(line, ix, unp, -1, "template '"+name+"' definition", vars);
     }
 
     /**
      * Shared parsing method implementation that handles parsing of contents of either
      * template, or extractor.
+     *
+     * @param hasParams whether it is legal to have template or extractor variables (references
+     *     using positional index, to be passed on actual invocation)
      */
     private int _readTemplateContents(InputLine line, int ix, DefPieceContainer container,
-            int parenCount, String desc)
+            int parenCount, String desc, VariableCollector vars)
         throws DefinitionParseException
     {
         // And then need to find template AND pattern references, literal patterns
@@ -244,6 +263,8 @@ public class DefinitionReader
         final int end = contents.length();
         StringBuilder sb = new StringBuilder();
         int literalStart = ix;
+        final boolean gotVars = (vars != null);
+
         while (ix < end) {
             char c = contents.charAt(ix++);
             if ((c == '%') || (c == '@') || (c == '$')) {
@@ -270,21 +291,44 @@ public class DefinitionReader
                         p = TokenHelper.parseInlinePattern(line, contents, ix);
                         container.appendLiteralPattern(p.match, ix);
                     } else {
-                        // otherwise named ref
-                        p = TokenHelper.parseName("pattern", line, contents, ix);
+                        // otherwise named ref; no pattern variables (yet?)
+                        p = TokenHelper.parseName("pattern", line, contents, ix, false);
                         container.appendPatternRef(p.match, ix);
                     }
                     ix = p.restOffset;
                 } else if (c == '@') { // template, only named refs
-                    p = TokenHelper.parseName("template", line, contents, ix);
-                    container.appendTemplateRef(p.match, ix);
+                    p = TokenHelper.parseName("template", line, contents, ix, gotVars);
                     ix = p.restOffset;
+                    int pos;
+                    if (gotVars
+                            && (pos = TokenHelper.parseIfNonNegativeNumber(p.match)) >= 0) {
+                        // 1-based index; avoid OOME/DoS by not allowing positions past 999999
+                        if ((pos < 1) || (pos > 999999)) {
+                            line.reportError(ix, "Invalid template variable %d in %s", pos, desc);
+                        }
+                        vars.add(line, ix, pos, c);
+                        container.appendTemplateVariable(pos, ix);
+                    } else {
+                        container.appendTemplateRef(p.match, ix);
+                    }
                 } else { // must be '$', extractor definition
-                    p = TokenHelper.parseName("extractor", line, contents, ix);
-                    ExtractorExpression extr = container.appendExtractor(p.match, ix);
+                    p = TokenHelper.parseName("extractor", line, contents, ix, gotVars);
                     ix = p.restOffset;
+                    ExtractorExpression extr;
+                    int pos;
+                    if (gotVars
+                            && (pos = TokenHelper.parseIfNonNegativeNumber(p.match)) >= 0) {
+                        // 1-based index; avoid OOME/DoS by not allowing positions past 999999
+                        if ((pos < 1) || (pos > 999999)) {
+                            line.reportError(ix, "Invalid template variable %d in %s", pos, desc);
+                        }
+                        vars.add(line, ix, pos, c);
+                        extr = container.appendVariableExtractor(pos, ix);
+                    } else {
+                        extr = container.appendExtractor(p.match, ix);
+                    }
                     // That was simple, but now need to decode contents, recursively
-                    ix = _readInlineExtractor(line, ix, extr);
+                    ix = _readInlineExtractor(line, ix, extr, vars);
                 }
                 literalStart = ix;
                 continue;
@@ -317,7 +361,8 @@ public class DefinitionReader
      * Method that will read contents of a given inline extractor definition, up to
      * closing parenthesis
      */
-    private int _readInlineExtractor(InputLine line, int ix, ExtractorExpression extr)
+    private int _readInlineExtractor(InputLine line, int ix, ExtractorExpression extr,
+            VariableCollector vars)
         throws DefinitionParseException
     {
         final String contents = line.getContents();
@@ -330,7 +375,7 @@ public class DefinitionReader
         ++ix;
 
         return _readTemplateContents(line, ix, extr, 1,
-                "extractor '"+extr.getName()+"' expression");
+                "extractor '"+extr.getName()+"' expression", vars);
     }
 
     private void readExtractionDefinition(InputLine line, int offset) throws IOException
@@ -379,7 +424,7 @@ public class DefinitionReader
                     }
                     template = new UncookedDefinition(line, "");
                     ix = _readTemplateContents(line, ix, template,
-                            0, "extraction template for '"+name+"'");
+                            0, "extraction template for '"+name+"'", null);
                 }
                 break;
             case "append":

@@ -10,6 +10,12 @@ public class TokenHelper
 {
     protected final static Pattern P_KEYWORD_REST = Pattern.compile("\\s*(\\w*)\\s*(.*)");
 
+    /*
+    /**********************************************************************
+    /* Simple skipping, matching
+    /**********************************************************************
+     */
+    
     public static StringAndOffset findKeyword(String contents, int offset)
     {
         Matcher m = P_KEYWORD_REST.matcher(contents);
@@ -33,9 +39,25 @@ public class TokenHelper
             if (c == marker) {
                 return ix;
             }
-            if (_isWS(c)) {
+            if (isWS(c)) {
                 break;
             }
+        }
+        return -1;
+    }
+
+    /**
+     * Helper method to see if we are pointing to a simple "()" construct at
+     * current input offset; and if so, skip it, returning positive integer;
+     * otherwise returning -1
+     */
+    public static int skipEmptyParens(String contents, int ix)
+    {
+        final int end = contents.length();
+        if (((ix + 1) < end)
+            && (contents.charAt(ix) == '(')
+            && (contents.charAt(ix+1) == ')')) {
+                return ix+2;
         }
         return -1;
     }
@@ -44,7 +66,7 @@ public class TokenHelper
         final int end = contents.length();
 
         for (; ix < end; ++ix) {
-            if (!_isWS(contents.charAt(ix))) {
+            if (!isWS(contents.charAt(ix))) {
                 break;
             }
         }
@@ -63,13 +85,19 @@ public class TokenHelper
                     break;
                 }
                 found = true;
-            } else if (!_isWS(c)) {
+            } else if (!isWS(c)) {
                 break;
             }
         }
         return found ? ix : -1;
     }
 
+    /*
+    /**********************************************************************
+    /* Main parse methods
+    /**********************************************************************
+     */
+    
     /**
      *<p>
      * NOTE: assumption is that there is no whitespace to skip, that is, the name
@@ -78,7 +106,7 @@ public class TokenHelper
     public static StringAndOffset parseNameAndSkipSpace(String type, InputLine inputLine,
             String contents, int ix) throws DefinitionParseException
     {
-        StringAndOffset offset = parseName(type, inputLine, contents, ix);
+        StringAndOffset offset = parseName(type, inputLine, contents, ix, false);
         // and skip whitespace, if any
         int restStart = offset.restOffset;
         final int end = contents.length();
@@ -88,11 +116,11 @@ public class TokenHelper
             return offset;
         }
         // otherwise must have something
-        if (!_isWS(contents.charAt(restStart))) {
+        if (!isWS(contents.charAt(restStart))) {
               return inputLine.reportError(restStart, "Missing space character after %s name '%s'",
                       type, offset.match);
         }
-        while ((++restStart < end) && _isWS(contents.charAt(restStart))) {
+        while ((++restStart < end) && isWS(contents.charAt(restStart))) {
             ;
         }
         return offset.withOffset(restStart);
@@ -104,7 +132,7 @@ public class TokenHelper
      * starts from the first character position.
      */
     public static StringAndOffset parseName(String type, InputLine inputLine,
-            String contents, int ix) throws DefinitionParseException
+            String contents, int ix, boolean allowNumbers) throws DefinitionParseException
     {
         // Two options: quoted, unquoted; and two types of quotes as well
         final int end = contents.length();
@@ -127,13 +155,27 @@ public class TokenHelper
             name = contents.substring(nameStart, q);
             restStart = q+1;
         } else if (!Character.isJavaIdentifierStart(c)) { // should give better error message
-              return inputLine.reportError(ix, "Invalid first character (%s) for %s name",
-                      _charDesc(c), type);
+            // One more thing; may be misplaced variable?
+            if (isNumber(c)) {
+                if (allowNumbers) {
+                    nameStart = ix;
+                    while ((ix < end) && isNumber(contents.charAt(ix))) {
+                        ++ix;
+                    }
+                    name = contents.substring(nameStart, ix);
+                    restStart = ix;
+                } else {
+                    return inputLine.reportError(ix,
+                            "Invalid variable-reference instead %s name: can not use variable references here",
+                            type);
+                }
+            }
+            return inputLine.reportError(ix, "Invalid first character (%s) for %s name",
+                    _charDesc(c), type);
         } else {
             nameStart = ix;
             while (++ix < end) {
                 c = contents.charAt(ix);
-                // let's allow hyphen and dot too, in addition to acceptable Java identifier chars
                 if (!_isNonLeadingNameChar(c)) {
                     break;
                 }
@@ -173,12 +215,38 @@ public class TokenHelper
         // should not get here
         return inputLine.reportError(start, "Missing closing '{' for inline pattern");
     }
-    
+
+    /*
+    /**********************************************************************
+    /* Internal helper methods
+    /**********************************************************************
+     */
+
+    public static int parseIfNonNegativeNumber(String str) {
+        final int end = str.length();
+        if (end == 0) {
+            return -1;
+        }
+        int num = 0;
+        for (int i = 0; i < end; ++i) {
+            char c = str.charAt(i);
+            if (!isNumber(c)) {
+                return -1;
+            }
+            num = (num * 10) + (c - '0');
+        }
+        return num;
+    }
+
     //  could use full JDK approach, with extra whitespace; but for now just allow ASCII whitespace
-    private static boolean _isWS(char ch) {
+    public static boolean isWS(char ch) {
         return (ch <= ' ');
     }
 
+    public static boolean isNumber(char ch) {
+        return (ch <= '9') && (ch >= '0');
+    }
+    
     private static boolean _isNonLeadingNameChar(char c) {
         // 24-Nov-2015, as per [issue#2], do NOT include hyphen as valid
         /*

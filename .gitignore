@@ -9,6 +9,7 @@ syntax: glob
 
 # building
 target
+dependency-reduced-pom.xml
 
 # Eclipse
 .classpath

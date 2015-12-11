@@ -48,12 +48,24 @@ public class UncookedDefinition
     }
 
     @Override
+    public void appendTemplateVariable(int varPos, int offset) {
+        _parts.add(new TemplateVariable(_source, offset, varPos));
+    }
+
+    @Override
     public ExtractorExpression appendExtractor(String name, int offset) {
         ExtractorExpression extr = new ExtractorExpression(_source, offset, name);
         _parts.add(extr);
         return extr;
     }
 
+    @Override
+    public ExtractorExpression appendVariableExtractor(int varPos, int offset) {
+        ExtractorExpression extr = new ExtractorExpression(_source, offset, varPos);
+        _parts.add(extr);
+        return extr;
+    }
+    
     @Override
     public String getName() {
         return _name;
