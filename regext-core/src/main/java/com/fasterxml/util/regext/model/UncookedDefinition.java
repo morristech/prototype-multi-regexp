@@ -41,6 +41,11 @@ public class UncookedDefinition
     }
 
     @Override
+    public void append(DefPiece part) {
+        _parts.add(part);
+    }
+
+    @Override
     public void appendLiteralPattern(String literal, int offset) {
         _parts.add(new LiteralPattern(_source, offset, literal));
     }
@@ -56,13 +61,15 @@ public class UncookedDefinition
     }
 
     @Override
-    public void appendTemplateRef(String name, int offset) {
-        _parts.add(new TemplateReference(_source, offset, name));
+    public TemplateReference appendTemplateRef(String name, int offset) {
+        TemplateReference ref = new TemplateReference(_source, offset, name);
+        _parts.add(ref);
+        return ref;
     }
 
     @Override
-    public void appendTemplateVariable(int varPos, int offset) {
-        _parts.add(new TemplateVariable(_source, offset, varPos));
+    public void appendTemplateVariable(String parentId, int varPos, int offset) {
+        _parts.add(new TemplateVariable(_source, offset, parentId, varPos));
     }
 
     @Override
@@ -88,6 +95,10 @@ public class UncookedDefinition
         return _source;
     }
 
+    public boolean hasParameters() {
+        return _parameters != null;
+    }
+
     public ParameterCollector getParameterCollector() {
         return _parameters;
     }
@@ -95,7 +106,7 @@ public class UncookedDefinition
     public int getDefinitionStart() {
         return _definitionStart;
     }
-    
+
     public List<DefPiece> getParts() {
         return _parts;
     }

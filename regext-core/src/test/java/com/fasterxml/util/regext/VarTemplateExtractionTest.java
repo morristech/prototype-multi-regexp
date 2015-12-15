@@ -27,4 +27,91 @@ public class VarTemplateExtractionTest extends TestBase
        assertEquals("foo.bar.com:8080", stuff.get("endpoint"));
        assertEquals(1, stuff.size());
    }
+
+   /*
+   /**********************************************************************
+   /* Tests to ensure parsing, error handling work
+   /**********************************************************************
+    */
+
+   public void testErrorMissingParameters() throws Exception
+   {
+       // Invalid: must have parameters used if declared to have some
+       String DEF =
+"pattern %word ([a-zA-Z]+)\n"+
+"template @pair() @1:@2\n"+
+"template @full @pair\n"+
+"extract Result {  \n"+
+"  template @full\n"+
+"}\n"+
+                   "";
+       DefinitionReader defR = DefinitionReader.reader(DEF);
+       try {
+           defR.read();
+           fail("Should not pass");
+       } catch (DefinitionParseException e) {
+           verifyException(e, "Missing parameter list");
+           verifyException(e, "@pair");
+       }
+   }
+
+   // If template is to take parameters, must be declared with parenthesis
+   public void testErrorParametersNotDeclared() throws Exception
+   {
+       // Invalid: must have parameters used if declared to have some
+       String DEF =
+"template @pair @1:@2\n"+
+"template @full xyz\n"+
+"extract Result {  \n"+
+"  template @full\n"+
+"}\n"+
+                   "";
+       DefinitionReader defR = DefinitionReader.reader(DEF);
+       try {
+           defR.read();
+           fail("Should not pass");
+       } catch (DefinitionParseException e) {
+           verifyException(e, "Invalid variable reference");
+       }
+   }
+
+   public void testErrorMalformedParameterList() throws Exception
+   {
+       // Invalid: must have parameters used if declared to have some
+       String DEF =
+"template @pair() @1:@2\n"+
+"template @a    a\n"+
+"template @full @pair(@a\n"+
+"extract Result {  \n"+
+"  template @full\n"+
+"}\n"+
+                   "";
+       DefinitionReader defR = DefinitionReader.reader(DEF);
+       try {
+           defR.read();
+           fail("Should not pass");
+       } catch (DefinitionParseException e) {
+           verifyException(e, "Unexpected end of line");
+       }
+   }
+
+   public void testErrorUndefined() throws Exception
+   {
+       // Invalid: must have parameters used if declared to have some
+       String DEF =
+"template @constant text\n"+
+"template @abc @full(@ab(@c,@1))\n"+
+"template @full() @1\n"+
+"extract Result {  \n"+
+"  template @full\n"+
+"}\n"+
+                   "";
+       DefinitionReader defR = DefinitionReader.reader(DEF);
+       try {
+           defR.read();
+           fail("Should not pass");
+       } catch (DefinitionParseException e) {
+           verifyException(e, "non-existing template '@ab'");
+       }
+   }
 }

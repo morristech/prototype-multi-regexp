@@ -155,6 +155,7 @@ public class CookedDefinitions
             } else if (def instanceof PatternReference) {
                 String patternRef = def.getText();
                 LiteralPattern p = _patterns.get(patternRef);
+                // 15-Dec-2015, tatu: Should never happen, should have been checked earlier...
                 if (p == null) {
                     def.reportError("Referencing non-existing pattern '%%%s' from template '%s' (%s)",
                             patternRef, topName, _stackDesc("@", stack, result.getName()));
@@ -181,6 +182,9 @@ public class CookedDefinitions
                 _resolveTemplateContents(uncookedTemplates, name,
                         raw.getParts(), resolved, stack, topName);
                 result.append(resolved);
+            } else if (def instanceof TemplateVariable) {
+                // 15-Dec-2015, tatu: Pass as-is, for now?
+                result.append(def);
             } else {
                 _unrecognizedPiece(def, "template definition '"+topName+"'");
             }
@@ -311,6 +315,12 @@ public class CookedDefinitions
                 _resolveRegexps(extr, automatonInput, regexpInput, extractorNames);
                 automatonInput.append(')');
                 regexpInput.append(')');
+            } else if (part instanceof TemplateVariable) {
+                TemplateVariable var = (TemplateVariable) part;
+                part.getSource().reportError(part.getSourceOffset(),
+                        "Internal error: can not yet resolve parameter %s#%d",
+                        var.getParentId(), var.getPosition());
+
             } else {
                 part.getSource().reportError(part.getSourceOffset(),
                         "Internal error: unrecognized DefPiece %s", part.getClass().getName());

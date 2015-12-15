@@ -59,13 +59,15 @@ public class ExtractorExpression
     }
 
     @Override
-    public void appendTemplateRef(String name, int offset) {
-        _parts.add(new TemplateReference(_source, offset, name));
+    public TemplateReference appendTemplateRef(String name, int offset) {
+        TemplateReference ref = new TemplateReference(_source, offset, name);
+        _parts.add(ref);
+        return ref;
     }
 
     @Override
-    public void appendTemplateVariable(int varPos, int offset) {
-        _parts.add(new TemplateVariable(_source, offset, varPos));
+    public void appendTemplateVariable(String parentId, int varPos, int offset) {
+        _parts.add(new TemplateVariable(_source, offset, parentId, varPos));
     }
 
     @Override

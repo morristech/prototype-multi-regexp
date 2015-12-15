@@ -97,7 +97,7 @@ public class TokenHelper
     /* Main parse methods
     /**********************************************************************
      */
-    
+
     /**
      *<p>
      * NOTE: assumption is that there is no whitespace to skip, that is, the name
@@ -165,7 +165,7 @@ public class TokenHelper
                     name = contents.substring(nameStart, ix);
                 } else {
                     return inputLine.reportError(ix,
-                            "Invalid variable-reference instead %s name: can not use variable references here",
+                            "Invalid variable reference instead of %s name: can not use variable references here",
                             type);
                 }
             }
@@ -216,6 +216,19 @@ public class TokenHelper
 
     /*
     /**********************************************************************
+    /* Error reporting helpers
+    /**********************************************************************
+     */
+    
+    public static String charDesc(char c) {
+        if ((c < 0x0020) || Character.isISOControl(c)) {
+            return String.format("code 0x%04x", (int) c);
+        }
+        return String.format("'%c' (code 0x%04x)", c, (int) c);
+    }
+    
+    /*
+    /**********************************************************************
     /* Internal helper methods
     /**********************************************************************
      */
@@ -253,12 +266,5 @@ public class TokenHelper
         }
         */
         return Character.isJavaIdentifierPart(c);
-    }
-
-    private static String _charDesc(char c) {
-        if ((c < 0x0020) || Character.isISOControl(c)) {
-            return String.format("code 0x%04x", (int) c);
-        }
-        return String.format("'%c' (code 0x%04x)", c, (int) c);
     }
 }

@@ -53,4 +53,8 @@ public class UncookedDefinitions
     public UncookedDefinition findPattern(String name) {
         return _rawPatterns.get(name);
     }
+
+    public UncookedDefinition findTemplate(String name) {
+        return _rawTemplates.get(name);
+    }
 }

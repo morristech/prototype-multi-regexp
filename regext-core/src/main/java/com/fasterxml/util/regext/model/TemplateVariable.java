@@ -7,12 +7,15 @@ import com.fasterxml.util.regext.io.InputLine;
  * template, passed as a positional argument to parameterized template.
  */
 public class TemplateVariable extends DefPiece {
+    private final String _parentId;
     private final int _position;
 
-    public TemplateVariable(InputLine src, int offset, int pos) {
+    public TemplateVariable(InputLine src, int offset, String parentId, int pos) {
         super(src, offset, String.valueOf(pos));
+        _parentId = parentId;
         _position = pos;
     }
 
+    public String getParentId() { return _parentId; }
     public int getPosition() { return _position; }
 }
