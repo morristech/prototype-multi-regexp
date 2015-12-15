@@ -42,6 +42,7 @@ public class ExtractionResolutionTest extends TestBase
         List<DefPiece> parts;
 
         parts = (List<DefPiece>) t.getParts();
+
         assertEquals(5, parts.size());
         _assertPart(parts.get(0), LiteralText.class, "(");
         _assertPart(parts.get(1), LiteralPattern.class, "a");

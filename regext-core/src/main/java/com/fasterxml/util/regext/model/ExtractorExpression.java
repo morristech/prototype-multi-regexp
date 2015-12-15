@@ -21,7 +21,7 @@ public class ExtractorExpression
      * specify actual name; 1-based
      */
     private final int _variablePos;
-    
+
     public ExtractorExpression(InputLine src, int offset, String lit) {
         super(src, offset, lit);
         _parts = new ArrayList<>();

@@ -13,18 +13,31 @@ import com.fasterxml.util.regext.io.InputLine;
 public class UncookedDefinition
     implements DefPieceContainer
 {
+    protected final InputLine _source;
+
     protected final String _name;
 
-    protected final InputLine _source;
+    /**
+     * Container of possible parameters this definition takes, if any.
+     */
+    protected final ParameterCollector _parameters;
+
+    /**
+     * Offset to where the actual definition starts, after naming and trailing
+     * white space.
+     */
+    protected final int _definitionStart;
 
     /**
      * Sequence of pieces of this definition instance.
      */
     protected List<DefPiece> _parts = new LinkedList<DefPiece>();
 
-    public UncookedDefinition(InputLine src, String name) {
+    public UncookedDefinition(InputLine src, String name, boolean hasParameters, int definitionStart) {
         _source = src;
         _name = name;
+        _parameters = hasParameters ? new ParameterCollector() : null;
+        _definitionStart = definitionStart;
     }
 
     @Override
@@ -75,6 +88,14 @@ public class UncookedDefinition
         return _source;
     }
 
+    public ParameterCollector getParameterCollector() {
+        return _parameters;
+    }
+
+    public int getDefinitionStart() {
+        return _definitionStart;
+    }
+    
     public List<DefPiece> getParts() {
         return _parts;
     }

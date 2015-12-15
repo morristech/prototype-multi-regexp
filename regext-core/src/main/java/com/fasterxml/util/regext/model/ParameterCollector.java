@@ -8,13 +8,13 @@ import com.fasterxml.util.regext.io.InputLine;
  * that declarations may have; these are simple index-references (instead of
  * named ones)
  */
-public class VariableCollector
+public class ParameterCollector
 {
     protected final StringBuilder _types = new StringBuilder(10);
 
     protected int _count;
 
-    public VariableCollector() { }
+    public ParameterCollector() { }
 
     public void add(InputLine src, int srcOffset,
             int pos, char type) throws DefinitionParseException
@@ -29,17 +29,17 @@ public class VariableCollector
             char old = _types.charAt(pos);
             if ((old != type) && (old != '\0')) {
                 throw DefinitionParseException.construct(String.format(
-                        "Inconsistent references to variable %d: %c vs %c", pos+1, old, type),
+                        "Inconsistent references to parameter %d: %c vs %c", pos+1, old, type),
                         src, srcOffset);
             }
         }
         _types.setCharAt(pos, type);
     }
 
-    public VariableDefinitions constructDefinitions() {
+    public ParameterDeclarations constructDeclarations() {
         if (_types.length() != _count) {
             _types.setLength(_count);
         }
-        return new VariableDefinitions(_types.toString());
+        return new ParameterDeclarations(_types.toString());
     }
 }

@@ -14,7 +14,7 @@ public class VarTemplateExtractionTest extends TestBase
 "template @port %num\n"+
 "template @colonPair() @1:@2\n"+
 "extract Net {  \n"+
-"  template $endpoint(@colonPair(@ip,@port))/%word"+
+"  template $endpoint(@colonPair(@ip,@port))/%word\n"+
 "}\n"+
                    "";
        DefinitionReader defR = DefinitionReader.reader(DEF);

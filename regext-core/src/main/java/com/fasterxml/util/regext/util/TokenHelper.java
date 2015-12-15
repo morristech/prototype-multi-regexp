@@ -163,15 +163,13 @@ public class TokenHelper
                         ++ix;
                     }
                     name = contents.substring(nameStart, ix);
-                    restStart = ix;
                 } else {
                     return inputLine.reportError(ix,
                             "Invalid variable-reference instead %s name: can not use variable references here",
                             type);
                 }
             }
-            return inputLine.reportError(ix, "Invalid first character (%s) for %s name",
-                    _charDesc(c), type);
+            restStart = ix;
         } else {
             nameStart = ix;
             while (++ix < end) {

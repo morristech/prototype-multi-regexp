@@ -10,6 +10,12 @@ import com.fasterxml.util.regext.model.*;
 import com.fasterxml.util.regext.util.StringAndOffset;
 import com.fasterxml.util.regext.util.TokenHelper;
 
+/**
+ * Main orchestrator of reading of Extractor definitions; mostly delegates processing
+ * to other entities (like {@link InputLineReader} which handles physical-to-logical lines
+ * concatenation), only directly handling basic detection of main-level line types during
+ * creation of "uncooked" input lines.
+ */
 public class DefinitionReader
 {
     private final static String KNOWN_KEYWORDS =
@@ -27,13 +33,12 @@ public class DefinitionReader
     
     protected final InputLineReader _lineReader;
 
-    protected final UncookedDefinitions _uncooked;
+    protected UncookedDefinitions _uncooked;
 
     protected final CookedDefinitions _cooked;
 
     protected DefinitionReader(InputLineReader lineReader) {
         _lineReader = lineReader;
-        _uncooked = new UncookedDefinitions();
         _cooked = new CookedDefinitions();
     }
 
@@ -109,8 +114,13 @@ public class DefinitionReader
      */
     public void readUncooked() throws IOException, DefinitionParseException
     {
-        // 1. Read all input in mostly unprocessed form
+        // lazily instantiate just to avoid problems if called more than once
+        if (_uncooked != null) {
+            return;
+        }
+        _uncooked = new UncookedDefinitions();
 
+        // 1. Read all input in mostly unprocessed form
         InputLine line;
         while ((line = _lineReader.nextLine()) != null) {
             final String contents = line.getContents();
@@ -121,22 +131,39 @@ public class DefinitionReader
 
             final String keyword = p.match;
             switch (keyword) {
-			case "pattern":
-				readPatternDefinition(line, p.restOffset);
-				break;
-			case "template":
-				readTemplateDefinition(line, p.restOffset);
-				break;
-			case "extract":
-				readExtractionDefinition(line, p.restOffset);
-				break;
-			default:
-				line.reportError(0, "Unrecognized keyword \"%s\" encountered; expected one of %s",
-						keyword, KNOWN_KEYWORDS);
-			}
-		}
+            case "pattern":
+                readPatternDefinition(line, p.restOffset);
+                break;
+            case "template":
+                readTemplateDefinition(line, p.restOffset);
+                break;
+            case "extract":
+                readExtractionDefinition(line, p.restOffset);
+                break;
+            default:
+                line.reportError(0, "Unrecognized keyword \"%s\" encountered; expected one of %s",
+                        keyword, KNOWN_KEYWORDS);
+            }
+        }
 
-		// Ok; done reading all.
+        // 2. With knowledge of existence (or not) of params, tokenize, as pre-cooking step
+        // 2a: tokenize patterns
+        for (UncookedDefinition pattern : _uncooked.getPatterns().values()) {
+            tokenizePatternDefinition(pattern);
+        }
+
+        // 2b: tokenize templates
+        for (UncookedDefinition template : _uncooked.getTemplates().values()) {
+            _readTemplateContents(template.getSource(), template.getDefinitionStart(), template, -1,
+                    "template '"+template.getName()+"' definition", template.getParameterCollector());
+        }
+
+        // 2c: tokenize extraction templates
+        for (UncookedExtraction xtr : _uncooked.getExtractions().values()) {
+            UncookedDefinition template = xtr.getTemplate();
+            _readTemplateContents(template.getSource(), template.getDefinitionStart(), template, 0,
+                    "extraction template for '"+template.getName()+"'", null);
+        }
     }
 
     /*
@@ -158,17 +185,22 @@ public class DefinitionReader
         String name = p.match;
 
         // First, verify this is not dup
-        UncookedDefinition unp = new UncookedDefinition(line, name);
+        UncookedDefinition unp = new UncookedDefinition(line, name, false, p.restOffset);
         UncookedDefinition old = _uncooked.addPattern(name, unp);
         if (old != null) {
             line.reportError(offset, "Duplicate pattern definition for name '%s'", name);
         }
-        offset = p.restOffset;
-        
+    }
+
+    private void tokenizePatternDefinition(UncookedDefinition unp) throws DefinitionParseException
+    {
+        final InputLine line = unp.getSource();
+        final String contents = line.getContents();
         // And then need to find cross-refs
         // First a quick and cheesy check for common case of no expansions
         final int end = contents.length();
-        ix = contents.indexOf('%', offset);
+        int offset = unp.getDefinitionStart();
+        int ix = contents.indexOf('%', offset);
         if (ix < 0) {
             unp.appendLiteralPattern(contents.substring(offset), offset);
             return;
@@ -185,7 +217,7 @@ public class DefinitionReader
                 continue;
             }
             if (ix == end) {
-                line.reportError(ix, "Orphan '%%' at end of pattern '%s' definition", name);
+                line.reportError(ix, "Orphan '%%' at end of pattern '%s' definition", unp.getName());
             }
             c = contents.charAt(ix);
             if (c == '%') {
@@ -221,30 +253,30 @@ public class DefinitionReader
         ix += 1;
         StringAndOffset p = TokenHelper.parseName("template", line, contents, ix, false);
         String name = p.match;
-
-        // First, verify this is not dup
-        UncookedDefinition unp = new UncookedDefinition(line, name);
-        UncookedDefinition old = _uncooked.addTemplate(name, unp);
-        if (old != null) {
-            line.reportError(ix, "Duplicate template definition for name '%s'", name);
-        }
+        final int nameOffset = ix;
         ix = p.restOffset;
 
-        // Then see if this is parameterized template (with parameter/argument, placeholders)
+        // See if this is parameterized template (with parameter/argument, placeholders)
         int ix2 = TokenHelper.skipEmptyParens(contents, ix);
-        VariableCollector vars;
+        boolean hasParams;
         if (ix2 > ix) {
             ix = ix2;
-            vars = new VariableCollector();
+            hasParams = true;
         } else {
-            vars = null;
+            hasParams = false;
         }
         ix2 = TokenHelper.skipSpace(contents, ix);
         if (ix == ix2) {
             line.reportError(ix, "Missing space character after template name '%s'", name);
         }
         ix = ix2;
-        _readTemplateContents(line, ix, unp, -1, "template '"+name+"' definition", vars);
+
+        // Then verify this is not dup
+        UncookedDefinition unp = new UncookedDefinition(line, name, hasParams, ix);
+        UncookedDefinition old = _uncooked.addTemplate(name, unp);
+        if (old != null) {
+            line.reportError(nameOffset, "Duplicate template definition for name '%s'", name);
+        }
     }
 
     /**
@@ -255,7 +287,7 @@ public class DefinitionReader
      *     using positional index, to be passed on actual invocation)
      */
     private int _readTemplateContents(InputLine line, int ix, DefPieceContainer container,
-            int parenCount, String desc, VariableCollector vars)
+            int parenCount, String desc, ParameterCollector vars)
         throws DefinitionParseException
     {
         // And then need to find template AND pattern references, literal patterns
@@ -304,7 +336,7 @@ public class DefinitionReader
                             && (pos = TokenHelper.parseIfNonNegativeNumber(p.match)) >= 0) {
                         // 1-based index; avoid OOME/DoS by not allowing positions past 999999
                         if ((pos < 1) || (pos > 999999)) {
-                            line.reportError(ix, "Invalid template variable %d in %s", pos, desc);
+                            line.reportError(ix, "Invalid template parameter %d in %s", pos, desc);
                         }
                         vars.add(line, ix, pos, c);
                         container.appendTemplateVariable(pos, ix);
@@ -320,7 +352,7 @@ public class DefinitionReader
                             && (pos = TokenHelper.parseIfNonNegativeNumber(p.match)) >= 0) {
                         // 1-based index; avoid OOME/DoS by not allowing positions past 999999
                         if ((pos < 1) || (pos > 999999)) {
-                            line.reportError(ix, "Invalid template variable %d in %s", pos, desc);
+                            line.reportError(ix, "Invalid extractor name parameter %d in %s", pos, desc);
                         }
                         vars.add(line, ix, pos, c);
                         extr = container.appendVariableExtractor(pos, ix);
@@ -362,7 +394,7 @@ public class DefinitionReader
      * closing parenthesis
      */
     private int _readInlineExtractor(InputLine line, int ix, ExtractorExpression extr,
-            VariableCollector vars)
+            ParameterCollector vars)
         throws DefinitionParseException
     {
         final String contents = line.getContents();
@@ -422,9 +454,7 @@ public class DefinitionReader
                     if (template != null) {
                         line.reportError(ix, "More than one 'template' specified for '"+name+"'");
                     }
-                    template = new UncookedDefinition(line, "");
-                    ix = _readTemplateContents(line, ix, template,
-                            0, "extraction template for '"+name+"'", null);
+                    template = new UncookedDefinition(line, "", false, ix);
                 }
                 break;
             case "append":

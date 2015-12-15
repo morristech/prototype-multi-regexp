@@ -2,11 +2,11 @@ package com.fasterxml.util.regext.model;
 
 import com.fasterxml.util.regext.io.InputLine;
 
-public class VariableDefinitions
+public class ParameterDeclarations
 {
     private final String _types;
 
-    public VariableDefinitions(String types) {
+    public ParameterDeclarations(String types) {
         _types = types;
     }
 
