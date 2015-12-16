@@ -333,7 +333,7 @@ public class DefinitionReader
                     }
                     ix = p.restOffset;
                 } else if (c == '@') { // template, named refs, parameter refs, parameterized refs
-                    _tokenizeTemplateReference(line, ix, uncookedDefs, desc, vars, container);
+                    ix = _tokenizeTemplateReference(line, ix, uncookedDefs, desc, vars, container);
                 } else { // must be '$', extractor definition
                     p = TokenHelper.parseName("extractor", line, contents, ix, gotVars);
                     ix = p.restOffset;

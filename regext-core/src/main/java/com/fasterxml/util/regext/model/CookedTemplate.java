@@ -13,13 +13,16 @@ public class CookedTemplate
     protected final String _name;
     protected final List<DefPiece> _parts;
 
+    protected final ParameterDeclarations _paramDecls;
+
     protected CookedTemplate(InputLine src, int srcOffset,
-            String name, List<DefPiece> parts)
+            String name, List<DefPiece> parts, ParameterDeclarations params)
     {
         _source = src;
         _sourceOffset = srcOffset;
         _name = name;
         _parts = parts;
+        _paramDecls = params;
     }
 
     public static CookedTemplate construct(UncookedDefinition uncooked) {
@@ -34,9 +37,15 @@ public class CookedTemplate
             source = p.getSource();
             offset = p.getSourceOffset();
         }
+        // Parameterization?
+        ParameterCollector paramDefs = uncooked.getParameterCollector();
+        ParameterDeclarations params = (paramDefs == null) ? null
+                : paramDefs.constructDeclarations();
+
         // could get offset of the first piece, which points to name. But for now let's not bother
         return new CookedTemplate(source, offset, uncooked.getName(),
-                new ArrayList<DefPiece>(Math.min(4, uncookedParts.size())));
+                new ArrayList<DefPiece>(Math.min(4, uncookedParts.size())),
+                params);
     }
 
     @Override
@@ -51,4 +60,12 @@ public class CookedTemplate
     public Iterable<DefPiece> getParts() { return _parts; }
 
     public InputLine getSource() { return _source; }
+
+    public boolean hasParameters() {
+        return (_paramDecls != null);
+    }
+
+    public ParameterDeclarations getParameterDeclarations() {
+        return _paramDecls;
+    }
 }

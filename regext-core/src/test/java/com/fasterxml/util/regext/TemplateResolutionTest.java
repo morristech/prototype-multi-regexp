@@ -7,6 +7,41 @@ import com.fasterxml.util.regext.model.*;
 
 public class TemplateResolutionTest extends TestBase
 {
+    public void testSimplest() throws Exception
+    {
+        final String DEF = "template @base (%{a}:foo)\n"+
+"template @full @base...\n";
+        DefinitionReader defR = DefinitionReader.reader(DEF);
+        defR.readUncooked();
+        // sanity checks
+        assertEquals(0, defR._uncooked.getPatterns().size());
+        assertEquals(2, defR._uncooked.getTemplates().size());
+        defR.resolvePatterns();
+        defR.resolveTemplates();
+        CookedDefinitions cooked = defR._cooked;
+
+        List<DefPiece> parts;
+
+        CookedTemplate t = cooked.findTemplate("base");
+        assertNotNull(t);
+        parts = (List<DefPiece>) t.getParts();
+        assertEquals(3, parts.size());
+        _assertPart(parts.get(0), LiteralText.class, "(");
+        _assertPart(parts.get(1), LiteralPattern.class, "a");
+        _assertPart(parts.get(2), LiteralText.class, ":foo)");
+
+        t = cooked.findTemplate("full");
+        assertNotNull(t);
+        parts = (List<DefPiece>) t.getParts();
+
+        // First three same as above
+        assertEquals(4, parts.size());
+        _assertPart(parts.get(0), LiteralText.class, "(");
+        _assertPart(parts.get(1), LiteralPattern.class, "a");
+        _assertPart(parts.get(2), LiteralText.class, ":foo)");
+        _assertPart(parts.get(3), LiteralText.class, "...");
+    }
+
     public void testSimple() throws Exception
     {
         final String DEF =
@@ -19,7 +54,7 @@ public class TemplateResolutionTest extends TestBase
         // sanity check
         assertEquals(1, defR._uncooked.getPatterns().size());
         assertEquals(2, defR._uncooked.getTemplates().size());
-        
+
         defR.resolvePatterns();
         defR.resolveTemplates();
 
@@ -40,7 +75,7 @@ public class TemplateResolutionTest extends TestBase
         _assertPart(parts.get(0), LiteralText.class, "(");
         _assertPart(parts.get(1), LiteralPattern.class, "a");
         _assertPart(parts.get(2), LiteralText.class, ":foo)");
-        
+
         t = cooked.findTemplate("full");
         assertNotNull(t);
         parts = (List<DefPiece>) t.getParts();
@@ -50,7 +85,6 @@ public class TemplateResolutionTest extends TestBase
         _assertPart(parts.get(0), LiteralText.class, "(");
         _assertPart(parts.get(1), LiteralPattern.class, "a");
         _assertPart(parts.get(2), LiteralText.class, ":foo)");
-
         _assertPart(parts.get(3), LiteralText.class, "...");
         _assertPart(parts.get(4), LiteralPattern.class, "[.*{2}]");
         _assertPart(parts.get(5), LiteralText.class, "--");

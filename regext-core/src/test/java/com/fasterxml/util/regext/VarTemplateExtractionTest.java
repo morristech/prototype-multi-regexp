@@ -114,4 +114,38 @@ public class VarTemplateExtractionTest extends TestBase
            verifyException(e, "non-existing template '@ab'");
        }
    }
+
+   public void testErrorParamMismatch() throws Exception
+   {
+       // number of formal, actual parameters must match
+       String DEF =
+"template @pair() @1:@2\n"+
+"template @foo foosball\n"+
+"template @fooPair @pair(@foo)\n"+
+"extract Result {  \n"+
+"  template @fooPair\n"+
+"}\n";
+       DefinitionReader defR = DefinitionReader.reader(DEF);
+       try {
+           defR.read();
+           fail("Should not pass");
+       } catch (DefinitionParseException e) {
+           verifyException(e, "Parameter mismatch");
+       }
+
+       DEF =
+"template @pair() @1:@2\n"+
+"template @foo foosball\n"+
+"template @fooPair @pair(@foo,@foo,@foo)\n"+
+"extract Result {  \n"+
+"  template @fooPair\n"+
+"}\n";
+       defR = DefinitionReader.reader(DEF);
+       try {
+           defR.read();
+           fail("Should not pass");
+       } catch (DefinitionParseException e) {
+           verifyException(e, "Parameter mismatch");
+       }
+   }
 }

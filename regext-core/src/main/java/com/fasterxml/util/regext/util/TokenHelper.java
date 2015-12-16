@@ -165,7 +165,7 @@ public class TokenHelper
                     name = contents.substring(nameStart, ix);
                 } else {
                     return inputLine.reportError(ix,
-                            "Invalid variable reference instead of %s name: can not use variable references here",
+                            "Invalid variable reference instead of %s name: can not use variable references here (missing parenthesis after template name?)",
                             type);
                 }
             }

@@ -59,7 +59,7 @@ public class ExtractionResolutionTest extends TestBase
     }
 
     // // // Failing tests
-    
+
     public void testEmpty() throws Exception
     {
         final String DEF = "pattern %a a\n"+
@@ -70,6 +70,23 @@ public class ExtractionResolutionTest extends TestBase
             fail("Should have failed due to no extractions");
         } catch (DefinitionParseException e) {
             verifyException(e, "No extraction definitions found");
+        }
+    }
+
+    public void testDupExtractorName() throws Exception
+    {
+        final String DEF = "pattern %word \\w+\n"+
+"template @extr $value(%word)\n"+
+"extract match {  \n"+
+"  template @extr @extr\n"+
+"}\n";
+
+        DefinitionReader defR = DefinitionReader.reader(DEF);
+        try {
+            defR.read();
+            fail("Should have failed due to dup extraction name");
+        } catch (DefinitionParseException e) {
+            verifyException(e, "Duplicate extractor name");
         }
     }
 }

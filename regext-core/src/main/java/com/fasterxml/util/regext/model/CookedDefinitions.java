@@ -108,12 +108,12 @@ public class CookedDefinitions
         // otherwise verify that we have no loop
         stack.add(fromName);
         if (stack.contains(toName)) {
-            def.reportError("Cyclic pattern reference to '%%%s' (%s)",
+            def.reportError("Cyclic pattern reference to '%%%s' %s",
                     toName, _stackDesc("%", stack, toName));
         }
         UncookedDefinition raw = uncookedPatterns.get(toName);
         if (raw == null) {
-            def.reportError("Referencing non-existing pattern '%%%s' (%s)",
+            def.reportError("Referencing non-existing pattern '%%%s' %s",
                     toName, _stackDesc("%", stack, toName));
         }
         LiteralPattern p = _resolvePattern(uncookedPatterns, toName, raw, stack);
@@ -129,6 +129,10 @@ public class CookedDefinitions
     /**********************************************************************
      */
 
+    /**
+     * Method called to essentially flatten template definitions as much as possible,
+     * although leaving nested structure for parametric templates.
+     */
     public void resolveTemplates(UncookedDefinitions uncooked)  throws DefinitionParseException
     {
         Map<String,UncookedDefinition> uncookedTemplates = uncooked.getTemplates();
@@ -157,20 +161,25 @@ public class CookedDefinitions
                 LiteralPattern p = _patterns.get(patternRef);
                 // 15-Dec-2015, tatu: Should never happen, should have been checked earlier...
                 if (p == null) {
-                    def.reportError("Referencing non-existing pattern '%%%s' from template '%s' (%s)",
+                    def.reportError("Referencing non-existing pattern '%%%s' from template '%s' %s",
                             patternRef, topName, _stackDesc("@", stack, result.getName()));
                 }
                 result.append(p);
             } else if (def instanceof TemplateReference) {
-                if (stack == null) {
-                    stack = new LinkedList<>();
-                }
-                TemplateReference ref = (TemplateReference) def;
-                CookedTemplate tmpl = _resolveTemplateReference(uncookedTemplates,
-                        name, ref, stack, topName);
-                // And for proper flattening, we'll just take out contents
-                for (DefPiece p : tmpl.getParts()) {
-                    result.append(p);
+                TemplateReference refdTemplate = (TemplateReference) def;
+                // Can only flatten non-parametric templates; others left as is
+                if (refdTemplate.takesParameters()) {
+                    result.append(refdTemplate);
+                } else {
+                    if (stack == null) {
+                        stack = new LinkedList<>();
+                    }
+                    CookedTemplate tmpl = _resolveTemplateReference(uncookedTemplates,
+                            name, refdTemplate, stack, topName);
+                    // And for proper flattening, we'll just take out contents
+                    for (DefPiece p : tmpl.getParts()) {
+                        result.append(p);
+                    }
                 }
             } else if (def instanceof ExtractorExpression) {
                 ExtractorExpression raw = (ExtractorExpression) def;
@@ -204,12 +213,12 @@ public class CookedDefinitions
         // otherwise verify that we have no loop
         stack.add(fromName);
         if (stack.contains(toName)) {
-            ref.reportError("Cyclic template reference to '%%%s' (%s)",
+            ref.reportError("Cyclic template reference to '%%%s' %s",
                     toName, _stackDesc("@", stack, toName));
         }
         UncookedDefinition raw = uncookedTemplates.get(toName);
         if (raw == null) {
-            ref.reportError("Referencing non-existing template '%%%s' (%s)",
+            ref.reportError("Referencing non-existing template '%%%s' %s",
                     toName, _stackDesc("@", stack, toName));
         }
         CookedTemplate result = CookedTemplate.construct(raw);
@@ -233,7 +242,7 @@ public class CookedDefinitions
      * At this point translation into physical regexp input is needed.
      */
     public RegExtractor resolveExtractions(UncookedDefinitions uncooked)
-            throws DefinitionParseException
+        throws DefinitionParseException
     {
         Map<String, UncookedExtraction> uncookedTemplates = uncooked.getExtractions();
         final int ecount = uncookedTemplates.size();
@@ -245,19 +254,27 @@ public class CookedDefinitions
             CookedTemplate template = CookedTemplate.construct(rawTemplate);
             _resolveTemplateContents(Collections.<String,UncookedDefinition>emptyMap(),
                     rawTemplate.getName(), rawTemplate.getParts(), template, null, name);
+/*
+    System.err.println("Resolved extractions for: "+rawExtr.getName());
+for (DefPiece piece : template.getParts()) {
+    System.err.println(" Piece ("+piece.getClass().getName()+"): "+piece.getText());
+}
+*/            
             // Ok. And then heavy-lifting... two main parts; conversion of regexps (automaton
             // for multi-match; another regexp for actual extraction), then building
             // of multi-matcher
 
             StringBuilder automatonInput = new StringBuilder();
             StringBuilder regexpInput = new StringBuilder();
-            List<String> extractorNameList = new ArrayList<>();
 
-            _resolveRegexps(template, automatonInput, regexpInput, extractorNameList);
+            // Use set to efficiently catch duplicate extractor names
+            Set<String> extractorNameSet = new LinkedHashSet<>();
+
+            _resolveRegexps(template, automatonInput, regexpInput, extractorNameSet);
             automatonInputs.add(automatonInput.toString());
 
             // Start with regexp itself
-            String[] extractorNames = extractorNameList.toArray(new String[extractorNameList.size()]);
+            String[] extractorNames = extractorNameSet.toArray(new String[extractorNameSet.size()]);
             final String regexpSource = regexpInput.toString();
             Pattern regexp = null;
             try {
@@ -287,7 +304,7 @@ public class CookedDefinitions
 
     private void _resolveRegexps(DefPieceAppendable template,
             StringBuilder automatonInput, StringBuilder regexpInput,
-            List<String> extractorNames)
+            Collection<String> extractorNames)
         throws DefinitionParseException
     {
         for (DefPiece part : template.getParts()) {
@@ -307,7 +324,10 @@ public class CookedDefinitions
                 }
             } else if (part instanceof ExtractorExpression) {
                 ExtractorExpression extr = (ExtractorExpression) part;
-                extractorNames.add(extr.getName());
+                if (!extractorNames.add(extr.getName())) { // not allowed
+                    part.getSource().reportError(part.getSourceOffset(),
+                            "Duplicate extractor name ($%s)", extr.getName());
+                }
                 // not sure if we need to enclose it for Automaton, but shouldn't hurt
                 automatonInput.append('(');
                 regexpInput.append('(');
@@ -321,6 +341,30 @@ public class CookedDefinitions
                         "Internal error: can not yet resolve parameter %s#%d",
                         var.getParentId(), var.getPosition());
 
+            } else if (part instanceof TemplateReference) {
+                TemplateReference ref = (TemplateReference) part;
+                CookedTemplate res = _templates.get(ref.getName());
+                if (res == null) { // should never occur but
+                    part.getSource().reportError(part.getSourceOffset(),
+                            "Internal error: reference to unknown template '@%s'", ref.getName());
+                }
+                // at this point, MUST be parametric, non-parametric already flattened.. but verify
+                if (!res.hasParameters()) {
+                    part.getSource().reportError(part.getSourceOffset(),
+                            "Internal error: unresolved non-parametric template '@%s'", ref.getName());
+                }
+
+                // Ok, then, create bindings. But first, ensure actual/expected mumber matches
+                List<DefPiece> paramRefs = ref.getParameters();
+                ParameterDeclarations paramDecls = res.getParameterDeclarations();
+                if (paramRefs.size() != paramDecls.size()) {
+                    part.getSource().reportError(part.getSourceOffset(),
+                            "Parameter mismatch: template '@%s' expects %d parameters; %d passed",
+                                ref.getName(), paramDecls.size(), paramRefs.size());
+                }
+                
+                part.getSource().reportError(part.getSourceOffset(),
+                        "Internal error: can not yet resolve parametric template '@%s'", ref.getName());
             } else {
                 part.getSource().reportError(part.getSourceOffset(),
                         "Internal error: unrecognized DefPiece %s", part.getClass().getName());
@@ -335,12 +379,17 @@ public class CookedDefinitions
      */
 
     private String _stackDesc(String marker, List<String> stack, String last) {
+        if (stack == null) {
+            return "";
+        }
         StringBuilder sb = new StringBuilder(100);
+        sb.append('(');
         for (String str : stack) {
             sb.append(marker).append(str);
             sb.append("->");
         }
         sb.append(marker).append(last);
+        sb.append(')');
         return sb.toString();
     }
 
