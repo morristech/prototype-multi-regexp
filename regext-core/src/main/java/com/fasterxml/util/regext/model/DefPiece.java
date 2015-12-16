@@ -13,12 +13,19 @@ public abstract class DefPiece
     protected final int _sourceOffset;
 
     protected final String _text;
-    
+
     protected DefPiece(InputLine src, int offset, String text)
     {
         _source = src;
         _sourceOffset = offset;
         _text = text;
+    }
+
+    protected DefPiece(DefPiece base)
+    {
+        _source = base._source;
+        _sourceOffset = base._sourceOffset;
+        _text = base._text;
     }
 
     public InputLine getSource() { return _source; }

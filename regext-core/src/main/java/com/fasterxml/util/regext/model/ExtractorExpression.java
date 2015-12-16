@@ -33,7 +33,17 @@ public class ExtractorExpression
         _parts = new ArrayList<>();
         _variablePos = variablePos;
     }
+
+    protected ExtractorExpression(ExtractorExpression base, List<DefPiece> newParts) {
+        super(base);
+        _parts = base._parts;
+        _variablePos = base._variablePos;
+    }
     
+    public ExtractorExpression withParts(List<DefPiece> newParts) {
+        return new ExtractorExpression(this, newParts);
+    }
+
     public ExtractorExpression empty() {
         return new ExtractorExpression(_source, _sourceOffset, _text);
     }
@@ -67,7 +77,7 @@ public class ExtractorExpression
 
     @Override
     public void appendTemplateVariable(String parentId, int varPos, int offset) {
-        _parts.add(new TemplateVariable(_source, offset, parentId, varPos));
+        _parts.add(new TemplateParameterReference(_source, offset, parentId, varPos));
     }
 
     @Override

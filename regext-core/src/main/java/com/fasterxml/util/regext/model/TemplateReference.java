@@ -15,6 +15,19 @@ public class TemplateReference extends DefPiece
         super(src, offset, lit);
     }
 
+    protected TemplateReference(TemplateReference base, List<DefPiece> p) {
+        super(base);
+        _parameters = p;
+    }
+    
+    /**
+     * "Mutant factory" method for creating a new instance, but with a different
+     * set of parameters. This is used during binding of parameters.
+     */
+    public TemplateReference withParameters(List<DefPiece> params) {
+        return new TemplateReference(this, params);
+    }
+
     public boolean takesParameters() {
         return _parameters != null;
     }

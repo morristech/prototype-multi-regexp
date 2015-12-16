@@ -1,7 +1,5 @@
 package com.fasterxml.util.regext.model;
 
-import com.fasterxml.util.regext.io.InputLine;
-
 public class ParameterDeclarations
 {
     private final String _types;
@@ -14,7 +12,18 @@ public class ParameterDeclarations
         return _types.length();
     }
 
-    public char getType(InputLine src, int srcOffset, int pos) {
-        return _types.charAt(pos-1);
+    public String getTypes() {
+        return _types;
+    }
+    
+    /**
+     * @param index 1-based index
+     */
+    public char getType(int index) {
+        if ((index < 1) || (index > _types.length())) {
+            throw new IllegalArgumentException("Invalid type index "+index+"; valid indexes [1.."
+                    +_types.length()+"]");
+        }
+        return _types.charAt(index-1);
     }
 }

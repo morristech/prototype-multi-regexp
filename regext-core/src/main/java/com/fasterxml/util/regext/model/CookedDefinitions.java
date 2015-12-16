@@ -6,6 +6,7 @@ import java.util.regex.Pattern;
 import com.fasterxml.util.regext.DefinitionParseException;
 import com.fasterxml.util.regext.RegExtractor;
 import com.fasterxml.util.regext.autom.PolyMatcher;
+import com.fasterxml.util.regext.io.InputLine;
 import com.fasterxml.util.regext.util.RegexHelper;
 
 public class CookedDefinitions
@@ -159,7 +160,7 @@ public class CookedDefinitions
             } else if (def instanceof PatternReference) {
                 String patternRef = def.getText();
                 LiteralPattern p = _patterns.get(patternRef);
-                // 15-Dec-2015, tatu: Should never happen, should have been checked earlier...
+                // Should never happen, should have been checked earlier...
                 if (p == null) {
                     def.reportError("Referencing non-existing pattern '%%%s' from template '%s' %s",
                             patternRef, topName, _stackDesc("@", stack, result.getName()));
@@ -191,7 +192,7 @@ public class CookedDefinitions
                 _resolveTemplateContents(uncookedTemplates, name,
                         raw.getParts(), resolved, stack, topName);
                 result.append(resolved);
-            } else if (def instanceof TemplateVariable) {
+            } else if (def instanceof TemplateParameterReference) {
                 // 15-Dec-2015, tatu: Pass as-is, for now?
                 result.append(def);
             } else {
@@ -270,7 +271,8 @@ for (DefPiece piece : template.getParts()) {
             // Use set to efficiently catch duplicate extractor names
             Set<String> extractorNameSet = new LinkedHashSet<>();
 
-            _resolveRegexps(template, automatonInput, regexpInput, extractorNameSet);
+            // last null -> no bindings from within extraction declaration
+            _resolveExtraction(template, automatonInput, regexpInput, extractorNameSet, null);
             automatonInputs.add(automatonInput.toString());
 
             // Start with regexp itself
@@ -301,74 +303,297 @@ for (DefPiece piece : template.getParts()) {
         }
         return RegExtractor.construct(this, poly);
     }
-
-    private void _resolveRegexps(DefPieceAppendable template,
+    
+    private void _resolveExtraction(DefPieceAppendable template,
             StringBuilder automatonInput, StringBuilder regexpInput,
-            Collection<String> extractorNames)
+            Collection<String> extractorNames,
+            ParameterBindings activeBindings)
         throws DefinitionParseException
     {
         for (DefPiece part : template.getParts()) {
-            if (part instanceof LiteralText) {
-                String q = RegexHelper.quoteLiteralAsRegexp(part.getText());
-                automatonInput.append(q);
-                regexpInput.append(q);
-            } else if (part instanceof LiteralPattern) {
-                String ptext = part.getText();
-                try {
-                    RegexHelper.massageRegexpForAutomaton(ptext, automatonInput);
-                    RegexHelper.massageRegexpForJDK(ptext, regexpInput);
-                } catch (Exception e) {
-                    part.getSource().reportError(part.getSourceOffset(),
-                            "Invalid pattern definition, problem (%s): %s",
-                            e.getClass().getName(), e.getMessage());
-                }
-            } else if (part instanceof ExtractorExpression) {
-                ExtractorExpression extr = (ExtractorExpression) part;
-                if (!extractorNames.add(extr.getName())) { // not allowed
-                    part.getSource().reportError(part.getSourceOffset(),
-                            "Duplicate extractor name ($%s)", extr.getName());
-                }
-                // not sure if we need to enclose it for Automaton, but shouldn't hurt
-                automatonInput.append('(');
-                regexpInput.append('(');
-                // and for "regular" Regexp package, must add to get group
-                _resolveRegexps(extr, automatonInput, regexpInput, extractorNames);
-                automatonInput.append(')');
-                regexpInput.append(')');
-            } else if (part instanceof TemplateVariable) {
-                TemplateVariable var = (TemplateVariable) part;
+            if (_resolveLiteral(part, automatonInput, regexpInput)
+                    || _resolveExtractor(part, automatonInput, regexpInput, extractorNames, activeBindings)) {
+                continue;
+            }
+            if (part instanceof TemplateReference) {
+                _resolveTemplateRefFromExtraction((TemplateReference) part,
+                        automatonInput, regexpInput, extractorNames, activeBindings);
+            } else if (part instanceof TemplateParameterReference) {
+                // Should not occur at this point; should resolve via TemplateReference above
+                TemplateParameterReference var = (TemplateParameterReference) part;
                 part.getSource().reportError(part.getSourceOffset(),
-                        "Internal error: can not yet resolve parameter %s#%d",
+                        "Internal error: should not encounter template parameter %s#%d",
                         var.getParentId(), var.getPosition());
-
-            } else if (part instanceof TemplateReference) {
-                TemplateReference ref = (TemplateReference) part;
-                CookedTemplate res = _templates.get(ref.getName());
-                if (res == null) { // should never occur but
-                    part.getSource().reportError(part.getSourceOffset(),
-                            "Internal error: reference to unknown template '@%s'", ref.getName());
-                }
-                // at this point, MUST be parametric, non-parametric already flattened.. but verify
-                if (!res.hasParameters()) {
-                    part.getSource().reportError(part.getSourceOffset(),
-                            "Internal error: unresolved non-parametric template '@%s'", ref.getName());
-                }
-
-                // Ok, then, create bindings. But first, ensure actual/expected mumber matches
-                List<DefPiece> paramRefs = ref.getParameters();
-                ParameterDeclarations paramDecls = res.getParameterDeclarations();
-                if (paramRefs.size() != paramDecls.size()) {
-                    part.getSource().reportError(part.getSourceOffset(),
-                            "Parameter mismatch: template '@%s' expects %d parameters; %d passed",
-                                ref.getName(), paramDecls.size(), paramRefs.size());
-                }
-                
-                part.getSource().reportError(part.getSourceOffset(),
-                        "Internal error: can not yet resolve parametric template '@%s'", ref.getName());
             } else {
                 part.getSource().reportError(part.getSourceOffset(),
                         "Internal error: unrecognized DefPiece %s", part.getClass().getName());
             }
+        }
+    }
+
+    /**
+     * Method called directly from template section of an extraction rule.
+     */
+    private void _resolveTemplateRefFromExtraction(TemplateReference ref,
+            StringBuilder automatonInput, StringBuilder regexpInput,
+            Collection<String> extractorNames,
+            ParameterBindings incomingBindings)
+        throws DefinitionParseException
+    {
+        final InputLine src = ref.getSource();
+        CookedTemplate template = _templates.get(ref.getName());
+        if (template == null) { // should never occur but
+            src.reportError(ref.getSourceOffset(),
+                    "Internal error: reference to unknown template '@%s'", ref.getName());
+        }
+
+        // at this point, main-level template references have been flattened, but not
+        // necessarily templates within parametric template parameter lists. So...
+        ParameterBindings bindings = null;
+        if (template.hasParameters()) {
+            // Ok, then, create bindings. But first, ensure actual/expected member matches
+            List<DefPiece> paramRefs = ref.getParameters();
+            ParameterDeclarations paramDecls = template.getParameterDeclarations();
+            final int pcount = paramDecls.size();
+            if (paramRefs.size() != pcount) {
+                src.reportError(ref.getSourceOffset(),
+                        "Parameter mismatch: template '@%s' expects %d parameters; %d passed",
+                            ref.getName(), pcount, paramRefs.size());
+            }
+    
+            // For bindings need to resolve parameters
+            bindings = new ParameterBindings(paramDecls);
+            int i = 0;
+            for (DefPiece piece : paramRefs) {
+                char exp = paramDecls.getType(++i);
+                if (!_paramCompatible(exp, piece)) {
+                    src.reportError(ref.getSourceOffset(),
+                            "Parameter mismatch: template '@%s' expects type '%c' parameter, got %s",
+                                ref.getName(),  exp, piece.getClass().getName());
+                }
+                bindings.addBound(_resolveParameters(piece, incomingBindings));
+            }
+        }
+        _resolveTemplateFromExtraction(template, automatonInput, regexpInput, extractorNames,
+                bindings);
+    }
+
+    private DefPiece _resolveParameters(DefPiece piece, ParameterBindings bindings)
+        throws DefinitionParseException
+    {
+        // Should only really get references to templates, parameters (variables)
+        // and parameter references
+        if (piece instanceof TemplateParameterReference) {
+            TemplateParameterReference var = (TemplateParameterReference) piece;
+            DefPiece v = bindings.getParameter(var.getPosition());
+            if (v == null) { // sanity check: out of bound
+                piece.reportError("Invalid parameter variable reference @%d; template has %d parameters",
+                        var.getPosition(), bindings.size());
+            }
+            return v;
+        }
+        if (piece instanceof TemplateReference) {
+            TemplateReference templ = (TemplateReference) piece;
+            List<DefPiece> params = templ.getParameters();
+            if (params == null) {
+                return templ;
+            }
+            List<DefPiece> newParams = new ArrayList<>();
+            for (DefPiece p : params) {
+                newParams.add(_resolveParameters(p, bindings));
+            }
+            return templ.withParameters(newParams);
+        }
+        if (piece instanceof ExtractorExpression) {
+            ExtractorExpression extr = (ExtractorExpression) piece;
+            List<DefPiece> newParts = new ArrayList<>();
+            for (DefPiece p : extr.getParts()) {
+                newParts.add(_resolveParameters(p, bindings));
+            }
+            return extr.withParts(newParts);
+        }
+        piece.reportError("Internal error: unexpected template parameter type %s", piece.getClass().getName());
+        return piece;
+    }
+    
+    private void _resolveTemplateFromExtraction(CookedTemplate template,
+            StringBuilder automatonInput, StringBuilder regexpInput,
+            Collection<String> extractorNames,
+            ParameterBindings activeBindings)
+        throws DefinitionParseException
+    {
+//        final InputLine src = template.getSource();
+
+        for (DefPiece part : template.getParts()) {
+            // First: parameters just expand to a single other thing
+            if (part instanceof TemplateParameterReference) {
+                TemplateParameterReference paramRef = (TemplateParameterReference) part;
+                int pos = paramRef.getPosition();
+                if (activeBindings == null){
+                    part.reportError("Invalid parameter variable reference @%d; template takes no parameters", pos);
+                }
+                DefPiece param = (activeBindings == null) ? null : activeBindings.getParameter(pos);
+                if (param == null) {
+                    part.reportError("Invalid parameter variable reference @%d; template takes %d parameters",
+                            pos, activeBindings.size());
+                }
+                part = param;
+                // fall-through for further processing
+            }
+
+            if (_resolveLiteral(part, automatonInput, regexpInput)
+                    || _resolveExtractor(part, automatonInput, regexpInput, extractorNames, activeBindings)) {
+                continue;
+            }
+            
+            if (part instanceof TemplateReference) {
+                _resolveTemplateRefFromExtraction((TemplateReference) part,
+                        automatonInput, regexpInput, extractorNames, activeBindings);
+                continue;
+            }
+            part.getSource().reportError(part.getSourceOffset(),
+                    "Internal error: unrecognized DefPiece %s", part.getClass().getName());
+        }
+    }
+
+    /*
+    
+    private void _resolveTemplateContents(String name, Iterable<DefPiece> toResolve,
+            DefPieceAppendable result,
+            List<String> stack)
+        throws DefinitionParseException
+    {
+        for (DefPiece def : toResolve) {
+            if (_resolveLiteral(def, automatonInput, regexpInput)
+                    || _resolveExtractor(def, automatonInput, regexpInput, extractorNames)) {
+                continue;
+            }
+
+            if (def instanceof PatternReference) {
+                String patternRef = def.getText();
+                LiteralPattern p = _patterns.get(patternRef);
+                // Should never happen, should have been checked earlier...
+                if (p == null) {
+                    throw new IllegalStateException(String.format(
+                            "Internal error: non-existing pattern '%%%s' from template '%s'",
+                            patternRef, name));
+                }
+                result.append(p);
+            } else if (def instanceof TemplateReference) {
+                TemplateReference refdTemplate = (TemplateReference) def;
+                // Can only flatten non-parametric templates; others left as is
+                if (refdTemplate.takesParameters()) {
+                    result.append(refdTemplate);
+                } else {
+                    if (stack == null) {
+                        stack = new LinkedList<>();
+                    }
+                    CookedTemplate tmpl = _resolveTemplateReference(uncookedTemplates,
+                            name, refdTemplate, stack, topName);
+                    // And for proper flattening, we'll just take out contents
+                    for (DefPiece p : tmpl.getParts()) {
+                        result.append(p);
+                    }
+                }
+            } else if (def instanceof ExtractorExpression) {
+                ExtractorExpression raw = (ExtractorExpression) def;
+                ExtractorExpression resolved = raw.empty();
+                if (stack == null) {
+                    stack = new LinkedList<>();
+                }
+                // pass same name as we got, since we are not resolving other template
+                _resolveTemplateContents(uncookedTemplates, name,
+                        raw.getParts(), resolved, stack, topName);
+                result.append(resolved);
+            } else if (def instanceof TemplateVariable) {
+                // 15-Dec-2015, tatu: Pass as-is, for now?
+                result.append(def);
+            } else {
+                _unrecognizedPiece(def, "template definition '"+topName+"'");
+            }
+        }
+    }
+    */
+
+    private boolean _resolveExtractor(DefPiece part,
+            StringBuilder automatonInput, StringBuilder regexpInput,
+            Collection<String> extractorNames,
+            ParameterBindings activeBindings)
+        throws DefinitionParseException
+    {
+        if (part instanceof ExtractorExpression) {
+            ExtractorExpression extr = (ExtractorExpression) part;
+            if (!extractorNames.add(extr.getName())) { // not allowed
+                part.getSource().reportError(part.getSourceOffset(),
+                        "Duplicate extractor name ($%s)", extr.getName());
+            }
+            // not sure if we need to enclose it for Automaton, but shouldn't hurt
+            automatonInput.append('(');
+            regexpInput.append('(');
+            // and for "regular" Regexp package, must add to get group
+            _resolveExtraction(extr, automatonInput, regexpInput, extractorNames, activeBindings);
+            automatonInput.append(')');
+            regexpInput.append(')');
+            return true;
+        }
+        return false;
+    }
+
+    private boolean _resolveLiteral(DefPiece part,
+            StringBuilder automatonInput, StringBuilder regexpInput)
+        throws DefinitionParseException
+    {
+        if (part instanceof LiteralText) {
+            String q = RegexHelper.quoteLiteralAsRegexp(part.getText());
+            automatonInput.append(q);
+            regexpInput.append(q);
+            return true;
+        }
+        if (part instanceof LiteralPattern) {
+            _resolvePattern(part, part.getText(), automatonInput, regexpInput);
+            return true;
+        }
+        if (part instanceof PatternReference) {
+            String patternRef = part.getText();
+            LiteralPattern p = _patterns.get(patternRef);
+            // Should never happen, should have been checked earlier...
+            if (p == null) {
+                throw new IllegalStateException(String.format(
+                        "Internal error: non-existing pattern '%%%s', should have been caught earlier",
+                        patternRef));
+            }
+            _resolvePattern(p, p.getText(), automatonInput, regexpInput);
+            return true;
+        }
+        return false;
+    }
+
+    private void _resolvePattern(DefPiece part, String ptext,
+            StringBuilder automatonInput, StringBuilder regexpInput)
+        throws DefinitionParseException
+    {
+        try {
+            RegexHelper.massageRegexpForAutomaton(ptext, automatonInput);
+            RegexHelper.massageRegexpForJDK(ptext, regexpInput);
+        } catch (Exception e) {
+            part.getSource().reportError(part.getSourceOffset(),
+                    "Invalid pattern definition, problem (%s): %s",
+                    e.getClass().getName(), e.getMessage());
+        }
+    }
+
+    private boolean _paramCompatible(char exp, DefPiece p)
+    {
+        switch (exp) {
+        case '@':
+            return p instanceof TemplateReference;
+        case '$':
+            // !!! TODO: do not yet have type for this!
+    //        compatible = p instanceof ExtractorReference;
+            return false;
+        default:
+            throw new IllegalStateException("Internal error: unrecognized template parameter type '"
+                    +exp+"' (for actual parameter type of "+p.getClass().getName()+")");
         }
     }
 

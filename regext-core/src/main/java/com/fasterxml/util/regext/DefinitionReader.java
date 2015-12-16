@@ -398,7 +398,7 @@ public class DefinitionReader
                 line.reportError(ix, "Invalid template parameter %d in %s", pos, desc);
             }
             vars.add(line, ix, pos, '@'); // this validates that type for given position is consistent
-            container.append(new TemplateVariable(line, ix, container.getName(), pos));
+            container.append(new TemplateParameterReference(line, ix, container.getName(), pos));
         } else {
             // Verify that such a template exists
             UncookedDefinition refdTemplate = uncookedDefs.findTemplate(id);

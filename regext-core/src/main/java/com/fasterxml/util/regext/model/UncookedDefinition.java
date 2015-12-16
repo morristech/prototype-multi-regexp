@@ -69,7 +69,7 @@ public class UncookedDefinition
 
     @Override
     public void appendTemplateVariable(String parentId, int varPos, int offset) {
-        _parts.add(new TemplateVariable(_source, offset, parentId, varPos));
+        _parts.add(new TemplateParameterReference(_source, offset, parentId, varPos));
     }
 
     @Override
