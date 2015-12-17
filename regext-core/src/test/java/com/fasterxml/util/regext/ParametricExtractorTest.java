@@ -7,8 +7,8 @@ public class ParametricExtractorTest extends TestBase
     public void testSimple() throws Exception
     {
         final String DEF =
- "pattern %word ([a-zA-Z]+)\n"+
  "pattern %num ([0-9]+)\n"+
+ "pattern %word ([a-zA-Z]+)\n"+
  "pattern %ip [a-zA-Z\\.]+\n"+
  "template @ip %ip\n"+
  "template @port %num\n"+

@@ -410,7 +410,8 @@ for (DefPiece piece : template.getParts()) {
             for (DefPiece p : extr.getParts()) {
                 newParts.add(_resolveParameters(p, bindings));
             }
-            return extr.withParts(newParts);
+            extr = extr.withParts(newParts);
+            return extr;
         }
         piece.reportError("Internal error: unexpected template parameter type %s", piece.getClass().getName());
         return piece;
@@ -451,69 +452,9 @@ for (DefPiece piece : template.getParts()) {
                         automatonInput, regexpInput, extractorNames, activeBindings);
                 continue;
             }
-            part.getSource().reportError(part.getSourceOffset(),
-                    "Internal error: unrecognized DefPiece %s", part.getClass().getName());
+            part.reportError("Internal error: unrecognized DefPiece %s", part.getClass().getName());
         }
     }
-
-    /*
-    
-    private void _resolveTemplateContents(String name, Iterable<DefPiece> toResolve,
-            DefPieceAppendable result,
-            List<String> stack)
-        throws DefinitionParseException
-    {
-        for (DefPiece def : toResolve) {
-            if (_resolveLiteral(def, automatonInput, regexpInput)
-                    || _resolveExtractor(def, automatonInput, regexpInput, extractorNames)) {
-                continue;
-            }
-
-            if (def instanceof PatternReference) {
-                String patternRef = def.getText();
-                LiteralPattern p = _patterns.get(patternRef);
-                // Should never happen, should have been checked earlier...
-                if (p == null) {
-                    throw new IllegalStateException(String.format(
-                            "Internal error: non-existing pattern '%%%s' from template '%s'",
-                            patternRef, name));
-                }
-                result.append(p);
-            } else if (def instanceof TemplateReference) {
-                TemplateReference refdTemplate = (TemplateReference) def;
-                // Can only flatten non-parametric templates; others left as is
-                if (refdTemplate.takesParameters()) {
-                    result.append(refdTemplate);
-                } else {
-                    if (stack == null) {
-                        stack = new LinkedList<>();
-                    }
-                    CookedTemplate tmpl = _resolveTemplateReference(uncookedTemplates,
-                            name, refdTemplate, stack, topName);
-                    // And for proper flattening, we'll just take out contents
-                    for (DefPiece p : tmpl.getParts()) {
-                        result.append(p);
-                    }
-                }
-            } else if (def instanceof ExtractorExpression) {
-                ExtractorExpression raw = (ExtractorExpression) def;
-                ExtractorExpression resolved = raw.empty();
-                if (stack == null) {
-                    stack = new LinkedList<>();
-                }
-                // pass same name as we got, since we are not resolving other template
-                _resolveTemplateContents(uncookedTemplates, name,
-                        raw.getParts(), resolved, stack, topName);
-                result.append(resolved);
-            } else if (def instanceof TemplateVariable) {
-                // 15-Dec-2015, tatu: Pass as-is, for now?
-                result.append(def);
-            } else {
-                _unrecognizedPiece(def, "template definition '"+topName+"'");
-            }
-        }
-    }
-    */
 
     private boolean _resolveExtractor(DefPiece part,
             StringBuilder automatonInput, StringBuilder regexpInput,
@@ -523,6 +464,23 @@ for (DefPiece piece : template.getParts()) {
     {
         if (part instanceof ExtractorExpression) {
             ExtractorExpression extr = (ExtractorExpression) part;
+
+            // Possibly parametric?
+            int pos = extr.getPosition();
+            if (pos >= 0) {
+                DefPiece p = activeBindings.getParameter(pos);
+                if (!(p instanceof ExtractorExpression)) {
+                    part.reportError("Internal error: unexpected extractor parameter of type %s (expecting ExtractorExpression)",
+                            p.getClass().getName());
+                }
+                ExtractorExpression ee = (ExtractorExpression) p;
+                if (ee.isPositional()) {
+                    part.reportError("Internal error: positional extractor parameter (%d) resolves to another positional (%d)",
+                            pos, ee.getPosition());
+                }
+                extr = extr.withName(ee.getName());
+            }
+            
             if (!extractorNames.add(extr.getName())) { // not allowed
                 part.getSource().reportError(part.getSourceOffset(),
                         "Duplicate extractor name ($%s)", extr.getName());
@@ -586,11 +544,9 @@ for (DefPiece piece : template.getParts()) {
     {
         switch (exp) {
         case '@':
-            return p instanceof TemplateReference;
+            return (p instanceof TemplateReference);
         case '$':
-            // !!! TODO: do not yet have type for this!
-    //        compatible = p instanceof ExtractorReference;
-            return false;
+            return (p instanceof ExtractorExpression);
         default:
             throw new IllegalStateException("Internal error: unrecognized template parameter type '"
                     +exp+"' (for actual parameter type of "+p.getClass().getName()+")");

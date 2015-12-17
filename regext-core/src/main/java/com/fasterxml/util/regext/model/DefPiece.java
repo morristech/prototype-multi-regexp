@@ -28,6 +28,13 @@ public abstract class DefPiece
         _text = base._text;
     }
 
+    protected DefPiece(DefPiece base, String text)
+    {
+        _source = base._source;
+        _sourceOffset = base._sourceOffset;
+        _text = text;
+    }
+    
     public InputLine getSource() { return _source; }
     public int getSourceOffset() { return _sourceOffset; }
     public String getText() { return _text; }

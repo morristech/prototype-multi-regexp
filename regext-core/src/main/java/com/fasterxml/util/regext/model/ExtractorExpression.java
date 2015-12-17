@@ -36,8 +36,18 @@ public class ExtractorExpression
 
     protected ExtractorExpression(ExtractorExpression base, List<DefPiece> newParts) {
         super(base);
-        _parts = base._parts;
+        _parts = newParts;
         _variablePos = base._variablePos;
+    }
+
+    protected ExtractorExpression(ExtractorExpression base, String newName) {
+        super(base, newName);
+        _parts = base._parts;
+        _variablePos = -1;
+    }
+
+    public ExtractorExpression withName(String name) {
+        return new ExtractorExpression(this, name);
     }
     
     public ExtractorExpression withParts(List<DefPiece> newParts) {
@@ -45,7 +55,7 @@ public class ExtractorExpression
     }
 
     public ExtractorExpression empty() {
-        return new ExtractorExpression(_source, _sourceOffset, _text);
+        return new ExtractorExpression(this, new ArrayList<DefPiece>());
     }
 
     @Override
@@ -103,5 +113,13 @@ public class ExtractorExpression
     @Override
     public Iterable<DefPiece> getParts() {
         return _parts;
+    }
+
+    public boolean isPositional() {
+        return _variablePos >= 0; // -1 is the "not positional" marker
+    }
+
+    public int getPosition() {
+        return _variablePos;
     }
 }

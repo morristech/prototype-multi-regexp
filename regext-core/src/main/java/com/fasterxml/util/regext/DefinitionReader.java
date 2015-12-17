@@ -380,43 +380,6 @@ public class DefinitionReader
         return ix;
     }
 
-    private int _tokenizeTemplateReference(InputLine line, int ix, UncookedDefinitions uncookedDefs,
-            String desc,
-            ParameterCollector vars, DefPieceAppendable container)
-        throws DefinitionParseException
-    {
-        final String contents = line.getContents();
-        
-        StringAndOffset p = TokenHelper.parseName("template", line, contents, ix, (vars != null));
-        ix = p.restOffset;
-        String id = p.match;
-        int pos;
-        if ((vars != null)
-                && ((pos = TokenHelper.parseIfNonNegativeNumber(id)) >= 0)) {
-            // 1-based index; avoid OOME/DoS by not allowing positions past 999999
-            if ((pos < 1) || (pos > 999999)) {
-                line.reportError(ix, "Invalid template parameter %d in %s", pos, desc);
-            }
-            vars.add(line, ix, pos, '@'); // this validates that type for given position is consistent
-            container.append(new TemplateParameterReference(line, ix, container.getName(), pos));
-        } else {
-            // Verify that such a template exists
-            UncookedDefinition refdTemplate = uncookedDefs.findTemplate(id);
-            if (refdTemplate == null) {
-                line.reportError(ix, "Referencing non-existing template '@%s' from '%s'",
-                        id, desc);
-            }
-            TemplateReference ref = new TemplateReference(line, ix, id);
-            container.append(ref);
-            // then: do we expect parameters? If so, decode
-            if (refdTemplate.hasParameters()) {
-                ix = _tokenizeParameterizedTemplate(line, ix, uncookedDefs,
-                        desc, vars, ref);
-            }
-        }
-        return ix;
-    }
-
     private int _tokenizeParameterizedTemplate(InputLine line, int ix, UncookedDefinitions uncookedDefs,
             String desc, ParameterCollector vars,
             TemplateReference ref)
@@ -448,18 +411,84 @@ public class DefinitionReader
                 }
                 c = contents.charAt(ix++);
             }
-            // For now, only template refs acceptable; may allow parameter refs in future
-            if (c != '@') {
+            switch (c) {
+            case '@':
+                ix = _tokenizeTemplateReference(line, ix, uncookedDefs,
+                        desc, vars, ref);
+                break;
+            case '$':
+                ix = _tokenizeExtractorParameter(line, ix, desc, vars, ref);
+                break;
+            default:
                 line.reportError(ix,
                         "Unexpected character %s in template parameter list for '@%s': expected either type marker '@' or closing ')'",
                         TokenHelper.charDesc(c), ref.getText());
             }
-            ix = _tokenizeTemplateReference(line, ix, uncookedDefs,
-                    desc, vars, ref);
         }
 
         // Should not get this far
         line.reportError(ix, "Unexpected end of line within parameter list for template '@%s'", ref.getText());
+        return ix;
+    }
+
+    private int _tokenizeTemplateReference(InputLine line, int ix, UncookedDefinitions uncookedDefs,
+            String desc,
+            ParameterCollector vars, DefPieceAppendable container)
+        throws DefinitionParseException
+    {
+        final String contents = line.getContents();
+        StringAndOffset p = TokenHelper.parseName("template parameter", line, contents, ix, (vars != null));
+        ix = p.restOffset;
+        String id = p.match;
+        int pos;
+        if ((vars != null)
+                && ((pos = TokenHelper.parseIfNonNegativeNumber(id)) >= 0)) {
+            // 1-based index; avoid OOME/DoS by not allowing positions past 999999
+            if ((pos < 1) || (pos > 999999)) {
+                line.reportError(ix, "Invalid template parameter %d in %s", pos, desc);
+            }
+            vars.add(line, ix, pos, '@'); // this validates that type for given position is consistent
+            container.append(new TemplateParameterReference(line, ix, container.getName(), pos));
+        } else {
+            // Verify that such a template exists
+            UncookedDefinition refdTemplate = uncookedDefs.findTemplate(id);
+            if (refdTemplate == null) {
+                line.reportError(ix, "Referencing non-existing template '@%s' from '%s'",
+                        id, desc);
+            }
+            TemplateReference ref = new TemplateReference(line, ix, id);
+            container.append(ref);
+            // then: do we expect parameters? If so, decode
+            if (refdTemplate.hasParameters()) {
+                ix = _tokenizeParameterizedTemplate(line, ix, uncookedDefs,
+                        desc, vars, ref);
+            }
+        }
+        return ix;
+    }
+    
+    private int _tokenizeExtractorParameter(InputLine line, int ix,
+            String desc,
+            ParameterCollector vars, DefPieceAppendable container)
+        throws DefinitionParseException
+    {
+        final String contents = line.getContents();
+        StringAndOffset p = TokenHelper.parseName("extractor parameter", line, contents, ix, (vars != null));
+        ix = p.restOffset;
+        String id = p.match;
+        int pos;
+
+        if ((vars != null)
+                && ((pos = TokenHelper.parseIfNonNegativeNumber(id)) >= 0)) {
+            // 1-based index; avoid OOME/DoS by not allowing positions past 999999
+            if ((pos < 1) || (pos > 999999)) {
+                line.reportError(ix, "Invalid extractor parameter %d in %s", pos, desc);
+            }
+            vars.add(line, ix, pos, '$'); // this validates that type for given position is consistent
+            container.append(new ExtractorParameterReference(line, ix, container.getName(), pos));
+        } else { // or, if just passing name...
+            container.append(new ExtractorExpression(line, ix, id));
+        }
         return ix;
     }
 
