@@ -2,7 +2,7 @@ package com.fasterxml.util.regext;
 
 import java.util.Map;
 
-public class VarTemplateExtractionTest extends TestBase
+public class ParametricTemplateTest extends TestBase
 {
    public void testSimple() throws Exception
    {
