@@ -86,7 +86,8 @@ public class DefinitionReader
     RegExtractor resolveAll() throws DefinitionParseException {
         resolvePatterns();
         resolveTemplates();
-        return resolveExtractions();
+        resolveExtractions();
+        return buildExtractor();
     }
 
     void resolvePatterns() throws DefinitionParseException {
@@ -97,10 +98,14 @@ public class DefinitionReader
         _cooked.resolveTemplates(_uncooked);
     }
 
-    RegExtractor resolveExtractions() throws DefinitionParseException {
-        return _cooked.resolveExtractions(_uncooked);
+    void resolveExtractions() throws DefinitionParseException {
+        _cooked.resolveExtractions(_uncooked);
     }
-    
+
+    RegExtractor buildExtractor() throws DefinitionParseException {
+        return RegExtractor.construct(_cooked);
+    }
+
     /*
     /**********************************************************************
     /* High-level flow

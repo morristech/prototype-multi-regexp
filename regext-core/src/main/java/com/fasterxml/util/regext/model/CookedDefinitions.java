@@ -1,22 +1,18 @@
 package com.fasterxml.util.regext.model;
 
 import java.util.*;
-import java.util.regex.Pattern;
 
 import com.fasterxml.util.regext.DefinitionParseException;
-import com.fasterxml.util.regext.RegExtractor;
-import com.fasterxml.util.regext.autom.PolyMatcher;
 import com.fasterxml.util.regext.io.InputLine;
-import com.fasterxml.util.regext.util.RegexHelper;
 
 public class CookedDefinitions
 {
-    protected HashMap<String,LiteralPattern> _patterns = new LinkedHashMap<>();
+    protected Map<String,LiteralPattern> _patterns = new LinkedHashMap<>();
 
-    protected HashMap<String,CookedTemplate> _templates = new LinkedHashMap<>();
+    protected Map<String,CookedTemplate> _templates = new LinkedHashMap<>();
 
-    protected List<CookedExtraction> _extractions = new ArrayList<>();
-    
+    protected List<FlattenedExtraction> _extractions = null;
+
     public CookedDefinitions() { }
 
     public LiteralPattern findPattern(String name) {
@@ -35,7 +31,10 @@ public class CookedDefinitions
         return _templates;
     }
 
-    public List<CookedExtraction> getExtractions() {
+    public List<FlattenedExtraction> getExtractions() {
+        if (_extractions == null) {
+            throw new IllegalStateException("Extractions not yet flattened");
+        }
         return _extractions;
     }
 
@@ -49,7 +48,7 @@ public class CookedDefinitions
      * First part of resolution: resolving and flattening of pattern declarations.
      * After this step, 
      */
-    public void resolvePatterns(UncookedDefinitions uncooked)  throws DefinitionParseException
+    public void resolvePatterns(UncookedDefinitions uncooked) throws DefinitionParseException
     {
         Map<String,UncookedDefinition> uncookedPatterns = uncooked.getPatterns(); 
         for (UncookedDefinition pattern : uncookedPatterns.values()) {
@@ -233,7 +232,7 @@ public class CookedDefinitions
 
     /*
     /**********************************************************************
-    /* Resolution: extractions
+    /* Resolution: extraction flattening
     /**********************************************************************
      */
 
@@ -242,12 +241,11 @@ public class CookedDefinitions
      * have been resolved, flattened (to the degree they can be: extractors can be nested).
      * At this point translation into physical regexp input is needed.
      */
-    public RegExtractor resolveExtractions(UncookedDefinitions uncooked)
+    public void resolveExtractions(UncookedDefinitions uncooked)
         throws DefinitionParseException
     {
         Map<String, UncookedExtraction> uncookedTemplates = uncooked.getExtractions();
-        final int ecount = uncookedTemplates.size();
-        List<String> automatonInputs = new ArrayList<>(ecount);
+        _extractions = new ArrayList<>();
 
         for (UncookedExtraction rawExtr : uncookedTemplates.values()) {
             UncookedDefinition rawTemplate = rawExtr.getTemplate();
@@ -255,78 +253,33 @@ public class CookedDefinitions
             CookedTemplate template = CookedTemplate.construct(rawTemplate);
             _resolveTemplateContents(Collections.<String,UncookedDefinition>emptyMap(),
                     rawTemplate.getName(), rawTemplate.getParts(), template, null, name);
-/*
-    System.err.println("Resolved extractions for: "+rawExtr.getName());
-for (DefPiece piece : template.getParts()) {
-    System.err.println(" Piece ("+piece.getClass().getName()+"): "+piece.getText());
-}
-*/            
-            // Ok. And then heavy-lifting... two main parts; conversion of regexps (automaton
-            // for multi-match; another regexp for actual extraction), then building
-            // of multi-matcher
-
-            StringBuilder automatonInput = new StringBuilder();
-            StringBuilder regexpInput = new StringBuilder();
-
             // Use set to efficiently catch duplicate extractor names
             Set<String> extractorNameSet = new LinkedHashSet<>();
-
-            // last null -> no bindings from within extraction declaration
-            _resolveExtraction(template, automatonInput, regexpInput, extractorNameSet, null);
-            automatonInputs.add(automatonInput.toString());
-
-            // Start with regexp itself
-            String[] extractorNames = extractorNameSet.toArray(new String[extractorNameSet.size()]);
-            final String regexpSource = regexpInput.toString();
-            Pattern regexp = null;
-            try {
-                regexp = Pattern.compile(regexpSource);
-            } catch (Exception e) {
-                rawTemplate.reportError("Invalid regular expression segment: %s", e.getMessage());
-            }
-            
-            int index = _extractions.size();
-            _extractions.add(CookedExtraction.construct(index, rawExtr, template,
-                    regexp, regexpSource, extractorNames));
+            List<DefPiece> parts = new ArrayList<>();
+            _resolveExtraction(template, parts, extractorNameSet, null);
+            _extractions.add(new FlattenedExtraction(rawExtr, parts, extractorNameSet));
         }
-        
-        // With that, can try constructing multi-matcher
-        PolyMatcher poly = null;
-        try {
-            poly = PolyMatcher.create(automatonInputs);
-        } catch (Exception e) {
-            DefinitionParseException pe = DefinitionParseException.construct(
-                    "Internal error: problem with PolyMatcher construction: "+ e.getMessage(),
-                    null, 0);
-            pe.initCause(e);
-            throw pe;
-        }
-        return RegExtractor.construct(this, poly);
     }
-    
-    private void _resolveExtraction(DefPieceAppendable template,
-            StringBuilder automatonInput, StringBuilder regexpInput,
+
+    private void _resolveExtraction(DefPieceAppendable template, List<DefPiece> parts,
             Collection<String> extractorNames,
             ParameterBindings activeBindings)
         throws DefinitionParseException
     {
         for (DefPiece part : template.getParts()) {
-            if (_resolveLiteral(part, automatonInput, regexpInput)
-                    || _resolveExtractor(part, automatonInput, regexpInput, extractorNames, activeBindings)) {
+            if (_resolveLiteral(part, parts) || _resolveExtractor(part, parts, extractorNames, activeBindings)) {
                 continue;
             }
             if (part instanceof TemplateReference) {
-                _resolveTemplateRefFromExtraction((TemplateReference) part,
-                        automatonInput, regexpInput, extractorNames, activeBindings);
+                _resolveTemplateRefFromExtraction((TemplateReference) part, parts,
+                        extractorNames, activeBindings);
             } else if (part instanceof TemplateParameterReference) {
                 // Should not occur at this point; should resolve via TemplateReference above
                 TemplateParameterReference var = (TemplateParameterReference) part;
-                part.getSource().reportError(part.getSourceOffset(),
-                        "Internal error: should not encounter template parameter %s#%d",
+                part.reportError("Internal error: should not encounter template parameter %s#%d",
                         var.getParentId(), var.getPosition());
             } else {
-                part.getSource().reportError(part.getSourceOffset(),
-                        "Internal error: unrecognized DefPiece %s", part.getClass().getName());
+                part.reportError("Internal error: unrecognized DefPiece %s", part.getClass().getName());
             }
         }
     }
@@ -334,8 +287,7 @@ for (DefPiece piece : template.getParts()) {
     /**
      * Method called directly from template section of an extraction rule.
      */
-    private void _resolveTemplateRefFromExtraction(TemplateReference ref,
-            StringBuilder automatonInput, StringBuilder regexpInput,
+    private void _resolveTemplateRefFromExtraction(TemplateReference ref, List<DefPiece> resultParts,
             Collection<String> extractorNames,
             ParameterBindings incomingBindings)
         throws DefinitionParseException
@@ -371,14 +323,14 @@ for (DefPiece piece : template.getParts()) {
                             "Parameter mismatch: template '@%s' expects type '%c' parameter, got %s",
                                 ref.getName(),  exp, piece.getClass().getName());
                 }
-                bindings.addBound(_resolveParameters(piece, incomingBindings));
+                bindings.addBound(_resolveParameters(piece, resultParts, incomingBindings));
             }
         }
-        _resolveTemplateFromExtraction(template, automatonInput, regexpInput, extractorNames,
-                bindings);
+        _resolveExtractionParts(template.getParts(), resultParts, extractorNames, bindings);
     }
 
-    private DefPiece _resolveParameters(DefPiece piece, ParameterBindings bindings)
+    private DefPiece _resolveParameters(DefPiece piece, List<DefPiece> parts,
+            ParameterBindings bindings)
         throws DefinitionParseException
     {
         // Should only really get references to templates, parameters (variables)
@@ -400,7 +352,7 @@ for (DefPiece piece : template.getParts()) {
             }
             List<DefPiece> newParams = new ArrayList<>();
             for (DefPiece p : params) {
-                newParams.add(_resolveParameters(p, bindings));
+                newParams.add(_resolveParameters(p, parts, bindings));
             }
             return templ.withParameters(newParams);
         }
@@ -408,7 +360,7 @@ for (DefPiece piece : template.getParts()) {
             ExtractorExpression extr = (ExtractorExpression) piece;
             List<DefPiece> newParts = new ArrayList<>();
             for (DefPiece p : extr.getParts()) {
-                newParts.add(_resolveParameters(p, bindings));
+                newParts.add(_resolveParameters(p, parts, bindings));
             }
             extr = extr.withParts(newParts);
             return extr;
@@ -416,16 +368,13 @@ for (DefPiece piece : template.getParts()) {
         piece.reportError("Internal error: unexpected template parameter type %s", piece.getClass().getName());
         return piece;
     }
-    
-    private void _resolveTemplateFromExtraction(CookedTemplate template,
-            StringBuilder automatonInput, StringBuilder regexpInput,
+
+    private void _resolveExtractionParts(Iterable<DefPiece> inputParts, List<DefPiece> resultParts,
             Collection<String> extractorNames,
             ParameterBindings activeBindings)
         throws DefinitionParseException
     {
-//        final InputLine src = template.getSource();
-
-        for (DefPiece part : template.getParts()) {
+        for (DefPiece part : inputParts) {
             // First: parameters just expand to a single other thing
             if (part instanceof TemplateParameterReference) {
                 TemplateParameterReference paramRef = (TemplateParameterReference) part;
@@ -442,73 +391,61 @@ for (DefPiece piece : template.getParts()) {
                 // fall-through for further processing
             }
 
-            if (_resolveLiteral(part, automatonInput, regexpInput)
-                    || _resolveExtractor(part, automatonInput, regexpInput, extractorNames, activeBindings)) {
+            if (_resolveLiteral(part, resultParts)
+                    || _resolveExtractor(part, resultParts, extractorNames, activeBindings)) {
                 continue;
             }
             
             if (part instanceof TemplateReference) {
-                _resolveTemplateRefFromExtraction((TemplateReference) part,
-                        automatonInput, regexpInput, extractorNames, activeBindings);
+                _resolveTemplateRefFromExtraction((TemplateReference) part, resultParts,
+                        extractorNames, activeBindings);
                 continue;
             }
             part.reportError("Internal error: unrecognized DefPiece %s", part.getClass().getName());
         }
     }
 
-    private boolean _resolveExtractor(DefPiece part,
-            StringBuilder automatonInput, StringBuilder regexpInput,
+    private boolean _resolveExtractor(DefPiece part, List<DefPiece> parts,
             Collection<String> extractorNames,
             ParameterBindings activeBindings)
         throws DefinitionParseException
     {
-        if (part instanceof ExtractorExpression) {
-            ExtractorExpression extr = (ExtractorExpression) part;
-
-            // Possibly parametric?
-            int pos = extr.getPosition();
-            if (pos >= 0) {
-                DefPiece p = activeBindings.getParameter(pos);
-                if (!(p instanceof ExtractorExpression)) {
-                    part.reportError("Internal error: unexpected extractor parameter of type %s (expecting ExtractorExpression)",
-                            p.getClass().getName());
-                }
-                ExtractorExpression ee = (ExtractorExpression) p;
-                if (ee.isPositional()) {
-                    part.reportError("Internal error: positional extractor parameter (%d) resolves to another positional (%d)",
-                            pos, ee.getPosition());
-                }
-                extr = extr.withName(ee.getName());
-            }
-            
-            if (!extractorNames.add(extr.getName())) { // not allowed
-                part.getSource().reportError(part.getSourceOffset(),
-                        "Duplicate extractor name ($%s)", extr.getName());
-            }
-            // not sure if we need to enclose it for Automaton, but shouldn't hurt
-            automatonInput.append('(');
-            regexpInput.append('(');
-            // and for "regular" Regexp package, must add to get group
-            _resolveExtraction(extr, automatonInput, regexpInput, extractorNames, activeBindings);
-            automatonInput.append(')');
-            regexpInput.append(')');
-            return true;
+        if (!(part instanceof ExtractorExpression)) {
+            return false;
         }
-        return false;
+        ExtractorExpression extr = (ExtractorExpression) part;
+
+        // Possibly parametric?
+        int pos = extr.getPosition();
+        if (pos >= 0) {
+            DefPiece p = activeBindings.getParameter(pos);
+            if (!(p instanceof ExtractorExpression)) {
+                part.reportError("Internal error: unexpected extractor parameter of type %s (expecting ExtractorExpression)",
+                        p.getClass().getName());
+            }
+            ExtractorExpression ee = (ExtractorExpression) p;
+            if (ee.isPositional()) {
+                part.reportError("Internal error: positional extractor parameter (%d) resolves to another positional (%d)",
+                        pos, ee.getPosition());
+            }
+            extr = extr.withName(ee.getName());
+        }
+        if (!extractorNames.add(extr.getName())) { // not allowed
+            part.reportError("Duplicate extractor name ($%s)", extr.getName());
+        }
+
+        // But now need to resolve contents, re-create container itself
+        List<DefPiece> newParts = new ArrayList<>();
+        _resolveExtractionParts(extr.getParts(), newParts, extractorNames, activeBindings);
+        parts.add(extr.withParts(newParts));
+        return true;
     }
 
-    private boolean _resolveLiteral(DefPiece part,
-            StringBuilder automatonInput, StringBuilder regexpInput)
+    private boolean _resolveLiteral(DefPiece part, List<DefPiece> parts)
         throws DefinitionParseException
     {
-        if (part instanceof LiteralText) {
-            String q = RegexHelper.quoteLiteralAsRegexp(part.getText());
-            automatonInput.append(q);
-            regexpInput.append(q);
-            return true;
-        }
-        if (part instanceof LiteralPattern) {
-            _resolvePattern(part, part.getText(), automatonInput, regexpInput);
+        if ((part instanceof LiteralText) || (part instanceof LiteralPattern)) {
+            parts.add(part);
             return true;
         }
         if (part instanceof PatternReference) {
@@ -520,24 +457,10 @@ for (DefPiece piece : template.getParts()) {
                         "Internal error: non-existing pattern '%%%s', should have been caught earlier",
                         patternRef));
             }
-            _resolvePattern(p, p.getText(), automatonInput, regexpInput);
+            parts.add(p);
             return true;
         }
         return false;
-    }
-
-    private void _resolvePattern(DefPiece part, String ptext,
-            StringBuilder automatonInput, StringBuilder regexpInput)
-        throws DefinitionParseException
-    {
-        try {
-            RegexHelper.massageRegexpForAutomaton(ptext, automatonInput);
-            RegexHelper.massageRegexpForJDK(ptext, regexpInput);
-        } catch (Exception e) {
-            part.getSource().reportError(part.getSourceOffset(),
-                    "Invalid pattern definition, problem (%s): %s",
-                    e.getClass().getName(), e.getMessage());
-        }
     }
 
     private boolean _paramCompatible(char exp, DefPiece p)

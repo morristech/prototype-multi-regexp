@@ -36,6 +36,7 @@ public class ExtractionResolutionTest extends TestBase
         assertEquals(Boolean.TRUE, appends.get("enabled"));
         assertEquals(Integer.valueOf(3), appends.get("x"));
 
+        /*
         CookedTemplate t = extr.getTemplate();
 
         // and then the beef, templates:
@@ -56,6 +57,7 @@ public class ExtractionResolutionTest extends TestBase
         _assertPart(parts.get(0), LiteralPattern.class, "a");
         _assertPart(parts.get(1), LiteralText.class, ":");
         _assertPart(parts.get(2), LiteralPattern.class, "\\w+");
+        */
     }
 
     // // // Failing tests

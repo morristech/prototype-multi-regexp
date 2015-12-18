@@ -15,8 +15,7 @@ public class ParametricExtractorTest extends TestBase
  "template @endpoint() $1(@ip):$2(@port)\n"+
  "extract Net {  \n"+
  "  template @endpoint($srcIp,$srcPort)/%word\n"+
- "}\n"+
-                    "";
+ "}\n";
         DefinitionReader defR = DefinitionReader.reader(DEF);
         RegExtractor def = defR.read();
 
@@ -35,4 +34,26 @@ public class ParametricExtractorTest extends TestBase
     /**********************************************************************
      */
 
+    public void testErrorDupNames() throws Exception
+    {
+        // Invalid: dup names
+        final String DEF =
+ "pattern %num ([0-9]+)\n"+
+ "pattern %word ([a-zA-Z]+)\n"+
+ "pattern %ip [a-zA-Z\\.]+\n"+
+ "template @ip %ip\n"+
+ "template @port %num\n"+
+ "template @endpoint() $1(@ip):$2(@port)\n"+
+ "extract Net {  \n"+
+ "  template @endpoint($srcIp,$srcPort)/%word @endpoint($srcIp,$whatever)\n"+
+ "}\n";
+        DefinitionReader defR = DefinitionReader.reader(DEF);
+        try {
+            defR.read();
+            fail("Should not pass");
+        } catch (DefinitionParseException e) {
+            verifyException(e, "duplicate extractor name");
+            verifyException(e, "srcIp");
+        }
+    }
 }
