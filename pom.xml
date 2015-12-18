@@ -8,7 +8,7 @@
   <groupId>com.fasterxml.util</groupId>
   <artifactId>reg-extractor-parent</artifactId>
   <name>RegExtractor-parent</name>
-  <version>0.6.0</version>
+  <version>0.6.1-SNAPSHOT</version>
   <packaging>pom</packaging>
   <description>Parent for components of RegExtractor.
   </description>
@@ -22,7 +22,7 @@
     <connection>scm:git:git@github.com:cowtowncoder/RegExtractor.git</connection>
     <developerConnection>scm:git:git@github.com:cowtowncoder/RegExtractor.git</developerConnection>
     <url>https://github.com/cowtowncoder/RegExtractor</url>
-    <tag>reg-extractor-parent-0.6.0</tag>
+    <tag>HEAD</tag>
   </scm>
   <developers>
     <developer>
