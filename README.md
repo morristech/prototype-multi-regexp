@@ -25,6 +25,26 @@ Extractor input definition is a line-oriented text document, consisting of 3 kin
 
 In addition to these declarations, individual "extractors" are declared as part of templates of extractions.
 
+Simple example declarations would be:
+
+```
+# Patterns
+pattern %num \d+
+pattern %hostname [a-zA-Z0-9_\-\.]+
+pattern %status \w+
+
+# Templates
+@endpoint %hostname:%num
+# or, if we want to create a parametric template:
+@extractEndpoint() $1(%hostname):$2(%num)
+
+# Extraction
+extract HostDefinition {
+  template @extractEndpoint($srcHost,$srcPort) $status(%status)
+```
+
+which shows both a simple template (no parameters), `@endpoint`, and parametric variant `@extractEndpoint`.
+
 ## Basic usage
 
 Assuming you have file `extractions.xtr` which contains extraction definition (2), and wanted to extract values out of it, you could use:
@@ -46,10 +66,11 @@ and a sample extraction definition could be something like (note that this is no
 ```
 pattern %num \d+
 pattern %word \w+
+# define both simple and parametric just for fun; either one would work
 template @extractTime time=$time(%num)
-template @extractVerb verb=$verb(%word)
+template @extractVerb() verb=$1(%word)
 extract SimpleEntry {
-   template prefix: @extractTime @extractVerb
+   template prefix: @extractTime @extractVerb($verb)
 }
 ```
 
@@ -115,6 +136,32 @@ extract OtherRequest {
 ```
 
 that is, by creating reusable templates to reduce amount of duplication.
+
+Further simplication may be possible by using parametric templates, where you can use parameters
+to refer to either other templates (by name passed as parameter) and different extractor names
+(similarly pass name of property to extract to), for example:
+
+```
+template @extractBracketed() [$1(@2)]
+```
+
+where you would invoke it by something like:
+
+```
+template @endpointDef %hostname:%port
+extract OtherRequest {
+   template Connection: @extractBracketed($src,@endpointDef) ->\
+ @extractBracketed($dst,@endpointDef)
+}
+```
+
+to match lines like:
+
+```
+Connection: [foobar.com:8080] -> [barfoo.internal.org:80]
+```
+
+and extract values `foobar.com:8080` (as `src`) and `barfoo.internal.org:80` (as `dst`)
 
 ## Regular Expressions supported
 
