@@ -39,8 +39,14 @@ pattern %status \w+
 @extractEndpoint() $1(%hostname):$2(%num)
 
 # Extraction
+// to extra 3 values (srcHost, srcPort, stats):
 extract HostDefinition {
   template @extractEndpoint($srcHost,$srcPort) $status(%status)
+}
+// or, if you only wanted to extract "status":
+extract JustStatus {
+  template @endpoint $status(%status)
+}
 ```
 
 which shows both a simple template (no parameters), `@endpoint`, and parametric variant `@extractEndpoint`.
@@ -183,10 +189,10 @@ Basic `Automaton` supports
 * Basic repetition markers `*` (Kleene star), `+`, `?`, `{n}`
 * Grouping (`(....)`)
 * Literal escaping with `\` (that is, character immediately following is used as-is)
-    * NOTE: due to extension here, literal quoting is ONLY used for-alphanumeric characters!
+    * NOTE: due to extension here, literal quoting is only used for non-alphabetic characters, and those letters for which no "well-known" character class or character escape is defined
 * Concatenation, union (`|`)
 
-but none of the extension features are enabled, to make it more likely that the same input
+Note that none of the extension features are enabled, to make it more likely that the same input
 patterns can be used with both `Automaton` and the regexp-based extractors.
 
 ### Features missing from `java.util.regex`
@@ -201,6 +207,8 @@ Of all the features, explicitly not supported features include:
 * Back-references
 * Named matching groups (instead, extractors are used to same effect)
 * Special constructors (matching that starts with `(?`
-    * NOTE: internally non-matching group markers are used to only capture groups define via extractors, as optimization)
+    * NOTE: internally non-matching group markers are used to skip capturing of grouping that is not part of extraction rule, as optimization)
 
-Some of these features may be potentially supportable, if [Automaton](http://www.brics.dk/automaton/) package adds such support; or, in case of named character classes, by adding conversion within RegExtractor itself. But some features (like back-references) are unlikely to be supportable.
+Some of these features may be potentially supportable, if [Automaton](http://www.brics.dk/automaton/) package adds such support;
+or, in case of named character classes, by adding conversion within RegExtractor itself.
+Some others features, like back-references, are unlikely to be supportable.
