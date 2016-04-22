@@ -1,4 +1,4 @@
-# RegExtractor
+# PoC: multi-regexp
 
 Library for building efficient log-line extractor from a multi-regexp input definition,
 starting with an ordered set of regular expressions (a subset of the usual Java regexp definition;
@@ -9,7 +9,7 @@ for actual value extraction.
 
 ## Basic operation
 
-To use RegExtractor, you need three things:
+To use this library you need three things:
 
 1. This library: comes in a single jar which includes shaded dependencies (so-called "uber-jar")
 2. Extraction definition: often a `File`, either stand-alone or a resource from within bigger jar; or possibly read from external storage like Amazon S3
