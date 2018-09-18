@@ -1,5 +1,16 @@
 # PoC: multi-regexp
 
+*NOTE*!
+
+This eventually became:
+
+https://github.com/salesforce/gorp
+
+so if interested, go there -- this is not an active project.
+
+
+-----
+
 Library for building efficient log-line extractor from a multi-regexp input definition,
 starting with an ordered set of regular expressions (a subset of the usual Java regexp definition;
 more on this below),
